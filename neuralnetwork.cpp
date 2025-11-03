@@ -9,15 +9,29 @@
 #include <string>
 using namespace std;
 
+class Node;
+
+class Link {
+
+public:
+  Node *next;
+  float weight;
+
+  Link(Node *next, float weight) : next(next), weight(weight) {}
+};
+
 class Node {
 public:
   float data;
-  list<Node *> prevs;
-  list<Node *> nexts;
+  list<Link *> nexts;
 
   Node(float value) : data(value) {}
-  void AddPrev(Node *prev) { prevs.push_back(prev); }
-  void AddNext(Node *next) { nexts.push_back(next); }
+  Link *AddLink(Node *next, float weight) {
+
+    Link *newLink = new Link(next, weight);
+    nexts.push_back(newLink);
+    return newLink;
+  }
 };
 
 class NeuralNetwork {
@@ -25,6 +39,8 @@ class NeuralNetwork {
 private:
   Node *input1;
   Node *input2;
+  list<Node *> layer1;
+  list<Link *> linksToLayer1;
 
 public:
   NeuralNetwork() {
@@ -36,60 +52,47 @@ public:
 
   void builder() {
 
-    input1 = MakeNode(1.2);
-    input2 = MakeNode(1.1);
+    int sizeOfLayer1 = 3;
 
-    // First level of nodes -- making new nodes
-    Node *lvl1Node1 = MakeNode(1.01);
-    Node *lvl1Node2 = MakeNode(0.9);
-    Node *lvl1Node3 = MakeNode(0.8);
-
-    Node *output1 = MakeNode(0.0);
-    Node *output2 = MakeNode(0.0);
-
-    input1->AddNext(lvl1Node1);
-    input1->AddNext(lvl1Node2);
-    input1->AddNext(lvl1Node3);
-
-    input2->AddNext(lvl1Node1);
-    input2->AddNext(lvl1Node2);
-    input2->AddNext(lvl1Node3);
-
-    lvl1Node1->AddPrev(input1);
-    lvl1Node2->AddPrev(input1);
-    lvl1Node3->AddPrev(input1);
-
-    lvl1Node1->AddPrev(input2);
-    lvl1Node2->AddPrev(input2);
-    lvl1Node3->AddPrev(input2);
-
-    lvl1Node1->AddNext(output1);
-    lvl1Node2->AddNext(output1);
-    lvl1Node3->AddNext(output1);
-
-    lvl1Node1->AddNext(output2);
-    lvl1Node2->AddNext(output2);
-    lvl1Node3->AddNext(output2);
-
-    output1->AddPrev(lvl1Node1);
-    output1->AddPrev(lvl1Node2);
-    output1->AddPrev(lvl1Node3);
-
-    output2->AddPrev(lvl1Node1);
-    output2->AddPrev(lvl1Node2);
-    output2->AddPrev(lvl1Node3);
+    /*input1 = MakeNode(1.0);*/
+    /*input2 = MakeNode(1.0);*/
+    /**/
+    /*Node *lvl1Node1 = MakeNode(0.9);*/
+    /*Node *lvl1Node2 = MakeNode(0.8);*/
+    /*Node *lvl1Node3 = MakeNode(0.7);*/
+    /**/
+    /*Node *output1 = MakeNode(0.1);*/
+    /*Node *output2 = MakeNode(0.2);*/
+    /**/
+    /*input1->AddLink(lvl1Node1, 0.6);*/
+    /*input1->AddLink(lvl1Node2, 0.5);*/
+    /*input1->AddLink(lvl1Node3, 0.4);*/
+    /**/
+    /*input2->AddLink(lvl1Node1, 0.62);*/
+    /*input2->AddLink(lvl1Node2, 0.52);*/
+    /*input2->AddLink(lvl1Node3, 0.42);*/
+    /**/
+    /*lvl1Node1->AddLink(output1, 0.31);*/
+    /*lvl1Node2->AddLink(output1, 0.21);*/
+    /*lvl1Node3->AddLink(output1, 0.11);*/
+    /**/
+    /*lvl1Node1->AddLink(output2, 0.32);*/
+    /*lvl1Node2->AddLink(output2, 0.22);*/
+    /*lvl1Node3->AddLink(output2, 0.12);*/
 
     Iterator(input1);
   }
 
   void Iterator(Node *tmp) {
 
-    cout << tmp->data << endl;
+    cout << endl << tmp->data;
     if (!tmp->nexts.empty()) {
 
-      for (Node *node : tmp->nexts) {
+      for (Link *link : tmp->nexts) {
 
-        Iterator(node);
+        cout << endl << "weight " << link->weight << endl;
+
+        Iterator(link->next);
       }
     }
   }
