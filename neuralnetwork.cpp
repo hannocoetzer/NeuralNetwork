@@ -24,9 +24,12 @@ https://www.youtube.com/watch?v=U4BTzF3Wzt0&list=PLLV9F4cTjkGNKcpD7PEFdYZvDP81xD
 - [(I1-A1)^2 + (I2-A2)^2 + (I3-A3)^2 + (In-An)^2]/ n
 - I is the Ideal and A is the Actual
 
-Gradient calculations (used to)
+Gradient calculations (first step into calculating the weights)
 https://www.youtube.com/watch?v=p1-FiWjThs8&list=PLLV9F4cTjkGNKcpD7PEFdYZvDP81xDT7w&index=3 @ 4:52
 
+Weight calculations AKA back propagation AKA resilient prop
+
+https://youtu.be/IruMm7mPDdM?si=LogrtdF721h1wstU
 
 */
 
