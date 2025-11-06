@@ -10,26 +10,37 @@
 using namespace std;
 
 /*
-Activation functions (used to populate the network with input/values | network is populated with random weights )
+extra tools
+https://www.tinkershop.net/ml/sigmoid_calculator.html
+
+Activation functions (used to populate the network's input/values | network is populated with random weights initially I think)
 https://www.youtube.com/watch?v=LW9VnXVIQt4&list=PLLV9F4cTjkGMPeII0bxTgbF3GMiVPXry2&index=2 @6:50
 - The weight values can be quite large
 - Activation fx = sigmoid function[(I1xW1) + (I2 x W2) + (I3 x W3) + (In x Wn)] = Input to another Node
 - where I is the input/value of the node and W is the weight
 - this function makes it so that the output/value of the Node is in a range of -1 to 1
 
-Error calculations (used to check if your output is within range)
+Error calculations (used to check if your output is within range, or close to the training output )
 https://www.youtube.com/watch?v=U4BTzF3Wzt0&list=PLLV9F4cTjkGNKcpD7PEFdYZvDP81xDT7w&index=3 @9:40
 - Used to determine the error (or how close you are) to the actual output value it should be
 - Mean square is commonly used
 - [(I1-A1)^2 + (I2-A2)^2 + (I3-A3)^2 + (In-An)^2]/ n
 - I is the Ideal and A is the Actual
 
-Gradient calculations (first step into calculating the weights)
+Gradient calculations used/saved in the weights (first step into calculating the weight adjustments for the network)
 https://www.youtube.com/watch?v=p1-FiWjThs8&list=PLLV9F4cTjkGNKcpD7PEFdYZvDP81xDT7w&index=3 @ 4:52
+- To be corrected but roughly calculated as
+  - (-1)xError x f'(activation/sigma value) -- Note the S'(X) is the value to use when using the sigmoid calculator
+  -We save this value above in the node
+  -And then calculate and save the gradient in the weight by multiplying the 1st Node x Linked node value 
 
-Weight calculations AKA back propagation AKA resilient prop
-
+Weight calculations AKA back propagation / resilient propagation ( used to determine the weight adjustments)
 https://youtu.be/IruMm7mPDdM?si=LogrtdF721h1wstU
+- each weight is adjusted by 
+New Weight = Current Weight + [Learn Rate (constant of 0.7) x Gradient] + [Momentum (constant of 0.3) x Previous Weight adjustment(0 for first iteration)]
+
+more advanced (ADAM)
+https://www.youtube.com/watch?v=zUZRUTJbYm8
 
 */
 
@@ -41,20 +52,22 @@ class Link {
 
 public:
   Node *next;
-  string weight;
+  float weight;
+  float gradient; // this value is the (-1) x Error x Derivative( Activation func ) !! Activation func = SIGMOID(Sum)
 
-  Link(Node *next, string weight) : next(next), weight(weight) {}
+  Link(Node *_next, float _weight) : next(_next), weight(_weight) {}
 };
 
 class Node {
 public:
-  string data;
+  float data;
+  float Sum;  // this value is the SUM OF ALL [linked(parent) node values x weights] 
   list<Link *> nexts;
 
-  Node(string value) : data(value) {}
-  Link *AddLink(Node *next, string weight) {
+  Node(float value) : data(value) {}
+  Link *AddLink(Node *_next, float _weight) {
 
-    Link *newLink = new Link(next, weight);
+    Link *newLink = new Link(_next, _weight);
     nexts.push_back(newLink);
     return newLink;
   }
@@ -65,6 +78,7 @@ class NeuralNetwork {
 private:
   Node *input1;
   Node *input2;
+  
   list<Node *> layer1;
   list<Link *> linksToLayer1;
 
@@ -74,36 +88,36 @@ public:
     input2 = nullptr;
   }
 
-  Node *MakeNode(string value) { return new Node(value); }
+  Node *MakeNode(float value) { return new Node(value); }
 
   void builder() {
 
     int sizeOfLayer1 = 3;
 
-    input1 = MakeNode("A");
-    input2 = MakeNode("B");
+    input1 = MakeNode(0.1);
+    input2 = MakeNode(0.2);
     
-    Node *lvl1Node1 = MakeNode("C");
-    Node *lvl1Node2 = MakeNode("D");
-    Node *lvl1Node3 = MakeNode("E");
-    Node *output1 = MakeNode("F");
-    Node *output2 = MakeNode("G");
+    Node *lvl1Node1 = MakeNode(0.3);
+    Node *lvl1Node2 = MakeNode(0.4);
+    Node *lvl1Node3 = MakeNode(0.5);
+    Node *output1 = MakeNode(0.6);
+    Node *output2 = MakeNode(0.7);
     
-    input1->AddLink(lvl1Node1, "A-C");
-    input1->AddLink(lvl1Node2, "A-D");
-    input1->AddLink(lvl1Node3, "A-E");
+    input1->AddLink(lvl1Node1, 0.13);
+    input1->AddLink(lvl1Node2, 0.14);
+    input1->AddLink(lvl1Node3, 0.15);
     
-    input2->AddLink(lvl1Node1, "B-C");
-    input2->AddLink(lvl1Node2, "B-D");
-    input2->AddLink(lvl1Node3, "B-E");
+    input2->AddLink(lvl1Node1, 0.23);
+    input2->AddLink(lvl1Node2, 0.24);
+    input2->AddLink(lvl1Node3, 0.25);
     
-    lvl1Node1->AddLink(output1, "C-F");
-    lvl1Node2->AddLink(output1, "D-F");
-    lvl1Node3->AddLink(output1, "E-F");
+    lvl1Node1->AddLink(output1, 0.36);
+    lvl1Node2->AddLink(output1, 0.46);
+    lvl1Node3->AddLink(output1, 0.56);
     
-    lvl1Node1->AddLink(output2, "C-G");
-    lvl1Node2->AddLink(output2, "D-G");
-    lvl1Node3->AddLink(output2, "E-G");
+    lvl1Node1->AddLink(output2, 0.37);
+    lvl1Node2->AddLink(output2, 0.47);
+    lvl1Node3->AddLink(output2, 0.57);
 
     Iterator(input1);
   }
