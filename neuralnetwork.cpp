@@ -51,11 +51,11 @@ class Node;
 class Link {
 
 public:
-  Node *next;
+  Node *node;
   float weight;
   float gradient; // this value is the (-1) x Error x Derivative( Activation func ) !! Activation func = SIGMOID(Sum)
 
-  Link(Node *_next, float _weight) : next(_next), weight(_weight) {}
+  Link( Node *_link, float _weight) :  node(_link), weight(_weight) {}
 };
 
 class Node {
@@ -63,13 +63,15 @@ public:
   float data;
   float Sum;  // this value is the SUM OF ALL [linked(parent) node values x weights] 
   list<Link *> nexts;
+  list<Link *> prevs;
 
   Node(float value) : data(value) {}
-  Link *AddLink(Node *_next, float _weight) {
+  void AddNext(Link *_link) {
+    nexts.push_back(_link);
+  }
 
-    Link *newLink = new Link(_next, _weight);
-    nexts.push_back(newLink);
-    return newLink;
+  void AddPrev(Link *_link){
+    prevs.push_back(_link);
   }
 };
 
@@ -92,7 +94,6 @@ public:
 
   void builder() {
 
-    int sizeOfLayer1 = 3;
 
     input1 = MakeNode(0.1);
     input2 = MakeNode(0.2);
@@ -102,25 +103,44 @@ public:
     Node *lvl1Node3 = MakeNode(0.5);
     Node *output1 = MakeNode(0.6);
     Node *output2 = MakeNode(0.7);
-    
-    input1->AddLink(lvl1Node1, 0.13);
-    input1->AddLink(lvl1Node2, 0.14);
-    input1->AddLink(lvl1Node3, 0.15);
-    
-    input2->AddLink(lvl1Node1, 0.23);
-    input2->AddLink(lvl1Node2, 0.24);
-    input2->AddLink(lvl1Node3, 0.25);
-    
-    lvl1Node1->AddLink(output1, 0.36);
-    lvl1Node2->AddLink(output1, 0.46);
-    lvl1Node3->AddLink(output1, 0.56);
-    
-    lvl1Node1->AddLink(output2, 0.37);
-    lvl1Node2->AddLink(output2, 0.47);
-    lvl1Node3->AddLink(output2, 0.57);
 
-    Iterator(input1);
+    input1->AddNext(new Link(lvl1Node1,0.13));    
+    input1->AddNext(new Link(lvl1Node2,0.14));
+    input1->AddNext(new Link(lvl1Node3,0.15));
+
+    lvl1Node1->AddPrev(new Link(input1,0.13));    
+    lvl1Node2->AddPrev(new Link(input1,0.14));
+    lvl1Node3->AddPrev(new Link(input1,0.15));
+
+    input2->AddNext(new Link(lvl1Node1,0.23));    
+    input2->AddNext(new Link(lvl1Node2,0.24));
+    input2->AddNext(new Link(lvl1Node3,0.25));
+
+    lvl1Node1->AddPrev(new Link(input2,0.23));    
+    lvl1Node2->AddPrev(new Link(input2,0.24));
+    lvl1Node3->AddPrev(new Link(input2,0.25));
+    
+    
+    lvl1Node1->AddNext(new Link(output1,0.36));    
+    lvl1Node2->AddNext(new Link(output1,0.46));
+    lvl1Node3->AddNext(new Link(output1,0.56));
+
+    output1->AddPrev(new Link(lvl1Node1,0.36));    
+    output1->AddPrev(new Link(lvl1Node2,0.46));
+    output1->AddPrev(new Link(lvl1Node3,0.56));
+
+    lvl1Node1->AddNext(new Link(output2,0.37));    
+    lvl1Node2->AddNext(new Link(output2,0.47));
+    lvl1Node3->AddNext(new Link(output2,0.57));
+
+    output2->AddPrev(new Link(lvl1Node1,0.37));    
+    output2->AddPrev(new Link(lvl1Node2,0.47));
+    output2->AddPrev(new Link(lvl1Node3,0.57));  
+    
+    //Iterator(input1);
+    //1IteratorReverse(output1);
   }
+
 
   void Iterator(Node *tmp) {
 
@@ -131,10 +151,25 @@ public:
 
         cout << endl << "weight " << link->weight << endl;
 
-        Iterator(link->next);
+        Iterator(link->node);
       }
     }
   }
+
+  void IteratorReverse(Node *tmp) {
+
+    cout << endl << tmp->data;
+    if (!tmp->prevs.empty()) {
+
+      for (Link *link : tmp->prevs) {
+
+        cout << endl << "weight " << link->weight << endl;
+
+        Iterator(link->node);
+      }
+    }
+  }
+
 };
 
 int main() {
