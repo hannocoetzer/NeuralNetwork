@@ -142,6 +142,35 @@ public:
     //displayNodePrevs(output1);
   }
 
+void display()
+{for(List* nodelist: layers){
+cout<<endl;
+  for(Node *node: nodelist)
+    {
+      cout<<node->data;
+      
+    }
+cout<<endl;
+  for(Node *node: nodeList)
+    {
+      cout<<"/";
+      for(Link *link : node->nexts)
+        {
+          cout<<link->node;
+        }
+
+      
+    }
+
+  
+
+
+}
+
+
+  
+}
+
   void displayNodeNexts(Node* node)
   {
     for(Link* link: node->nexts)
