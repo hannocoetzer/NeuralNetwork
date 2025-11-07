@@ -9,13 +9,16 @@
 #include <string>
 using namespace std;
 
+//todo
+// Error calculation
+// f'(x)
+
 /*
 extra tools
 https://www.tinkershop.net/ml/sigmoid_calculator.html
 
-Activation functions (used to populate the network's input/values | network is populated with random weights initially I think)
+Activation functions (used to populate the network's input/values)
 https://www.youtube.com/watch?v=LW9VnXVIQt4&list=PLLV9F4cTjkGMPeII0bxTgbF3GMiVPXry2&index=2 @6:50
-- The weight values can be quite large
 - Activation fx = sigmoid function[(I1xW1) + (I2 x W2) + (I3 x W3) + (In x Wn)] = Input to another Node
 - where I is the input/value of the node and W is the weight
 - this function makes it so that the output/value of the Node is in a range of -1 to 1
@@ -30,21 +33,21 @@ https://www.youtube.com/watch?v=U4BTzF3Wzt0&list=PLLV9F4cTjkGNKcpD7PEFdYZvDP81xD
 Gradient calculations used/saved in the weights (first step into calculating the weight adjustments for the network)
 https://www.youtube.com/watch?v=p1-FiWjThs8&list=PLLV9F4cTjkGNKcpD7PEFdYZvDP81xDT7w&index=3 @ 4:52
 - To be corrected but roughly calculated as
-  - (-1)xError x f'(activation/sigma value) -- Note the S'(X) is the value to use when using the sigmoid calculator
-  -We save this value above in the node
-  -And then calculate and save the gradient in the weight by multiplying the 1st Node x Linked node value 
+- (-1)xError x f'(activation/sigmoid fuction) -- Note the S'(X) is the value to use when using the sigmoid calculator
+-We save this value above in the node
+-And then calculate and save the gradient in the weight by multiplying the 1st Node x Linked node value 
 
 Weight calculations AKA back propagation / resilient propagation ( used to determine the weight adjustments)
 https://youtu.be/IruMm7mPDdM?si=LogrtdF721h1wstU
+- The weight values can be quite large
 - each weight is adjusted by 
-New Weight = Current Weight + [Learn Rate (constant of 0.7) x Gradient] + [Momentum (constant of 0.3) x Previous Weight adjustment(0 for first iteration)]
+- network is populated with random weights initially
+- New Weight = Current Weight + [Learn Rate (constant of 0.7) x Gradient] + [Momentum (constant of 0.3) x Previous Weight adjustment(previous iteration)]
 
 more advanced (ADAM)
 https://www.youtube.com/watch?v=zUZRUTJbYm8
 
 */
-
-
 
 class Node;
 
@@ -65,12 +68,14 @@ public:
   list<Link *> nexts;
   list<Link *> prevs;
 
-  Node(float value) : data(value) {}
-  void AddNext(Link *_link) {
+  Node(float value) : data(value) {
+    Sum = 0;
+  }
+  void addNext(Link *_link) {
     nexts.push_back(_link);
   }
 
-  void AddPrev(Link *_link){
+  void addPrev(Link *_link){
     prevs.push_back(_link);
   }
 };
@@ -78,69 +83,122 @@ public:
 class NeuralNetwork {
 
 private:
-  Node *input1;
-  Node *input2;
-  
-  list<Node *> layer1;
-  list<Link *> linksToLayer1;
+
+  list<list<Node *>> layers;
+  list<Node *> tempLayer;
+
+
 
 public:
   NeuralNetwork() {
-    input1 = nullptr;
-    input2 = nullptr;
+
   }
 
-  Node *MakeNode(float value) { return new Node(value); }
+  void initLayer()
+  {
+    //ensures we don't add prevs to the input nodes
+    if(!layers.empty())
+    {
+      for(Node* prev : layers.back())
+      {      
+        for(Node* next : tempLayer)
+        {
+          prev->addNext(new Link(next,2));
+          next->addPrev(new Link(prev,3));
+        }
+      }
+    }
+
+    layers.push_back(tempLayer);   
+    tempLayer.clear(); 
+  }
+
+  Node *newNode(float value) 
+  {
+    Node *newNode = new Node(value);
+    tempLayer.push_back(newNode);
+    return newNode; 
+  }
 
   void builder() {
 
-
-    input1 = MakeNode(0.1);
-    input2 = MakeNode(0.2);
+    Node *input1 = newNode(0.1);
+    Node *input2 = newNode(0.2);
+    initLayer();
     
-    Node *lvl1Node1 = MakeNode(0.3);
-    Node *lvl1Node2 = MakeNode(0.4);
-    Node *lvl1Node3 = MakeNode(0.5);
-    Node *output1 = MakeNode(0.6);
-    Node *output2 = MakeNode(0.7);
+    Node *lvl1Node1 = newNode(0.3);
+    Node *lvl1Node2 = newNode(0.4);
+    Node *lvl1Node3 = newNode(0.5);
+    initLayer();
 
-    input1->AddNext(new Link(lvl1Node1,0.13));    
-    input1->AddNext(new Link(lvl1Node2,0.14));
-    input1->AddNext(new Link(lvl1Node3,0.15));
+    Node *output1 = newNode(0.6);
+    Node *output2 = newNode(0.7);
+    initLayer();
 
-    lvl1Node1->AddPrev(new Link(input1,0.13));    
-    lvl1Node2->AddPrev(new Link(input1,0.14));
-    lvl1Node3->AddPrev(new Link(input1,0.15));
+    displayNodePrevs(output1);    
 
-    input2->AddNext(new Link(lvl1Node1,0.23));    
-    input2->AddNext(new Link(lvl1Node2,0.24));
-    input2->AddNext(new Link(lvl1Node3,0.25));
+    breathFirst();
 
-    lvl1Node1->AddPrev(new Link(input2,0.23));    
-    lvl1Node2->AddPrev(new Link(input2,0.24));
-    lvl1Node3->AddPrev(new Link(input2,0.25));
-    
-    
-    lvl1Node1->AddNext(new Link(output1,0.36));    
-    lvl1Node2->AddNext(new Link(output1,0.46));
-    lvl1Node3->AddNext(new Link(output1,0.56));
-
-    output1->AddPrev(new Link(lvl1Node1,0.36));    
-    output1->AddPrev(new Link(lvl1Node2,0.46));
-    output1->AddPrev(new Link(lvl1Node3,0.56));
-
-    lvl1Node1->AddNext(new Link(output2,0.37));    
-    lvl1Node2->AddNext(new Link(output2,0.47));
-    lvl1Node3->AddNext(new Link(output2,0.57));
-
-    output2->AddPrev(new Link(lvl1Node1,0.37));    
-    output2->AddPrev(new Link(lvl1Node2,0.47));
-    output2->AddPrev(new Link(lvl1Node3,0.57));  
-    
-    //Iterator(input1);
-    //1IteratorReverse(output1);
+    displayNodePrevs(output1);
   }
 
+  void displayNodeNexts(Node* node)
+  {
+    for(Link* link: node->nexts)
+    {
+      cout<<endl<<link->node->data;
+    }
+  }
+
+  void displayNodePrevs(Node* node)
+  {
+    for(Link* link: node->prevs)
+    {
+      cout<<endl<<"Sum : " <<link->node->Sum;
+      cout<<endl<<"Weight : " <<link->weight;
+      cout<<endl<<"In/output " <<link->node->data;
+    }
+  }
+  
+  void breathFirst(){
+    int layerLevel = 1;
+    for(list layer : layers)
+    {
+      if(!layerLevel == 1)
+      {
+        for(Node* layerNode : layer)
+        {
+          float sum = 0;
+          //calculate sum
+          for(Link *link : layerNode->prevs)
+          {
+            sum = sum + (link->weight) * (link->node->data);
+            cout<<endl<<sum;
+          }
+          layerNode->Sum = sum;
+          //do sigma
+          layerNode->data = sigma(sum);
+        }
+      }
+      layerLevel++;
+    }
+  }
+
+  float sigma(float x){
+    //faster as mentioned here https://stackoverflow.com/questions/10732027/fast-sigmoid-algorithm 
+    //return value / (1 + abs(value));
+
+    //f=1/(1+e^(-x)) 
+    const float e = 2.71828;
+    return 1/(1+pow(e,x));
+  }
+
+  float sigmaDerivative(float x){
+    //f'=(e^x)/[e^(2x)+2e^(x)+1] 
+    const float e = 2.71828;
+    return pow(e,x) / (pow(e,2*x) + 2*pow(e,x) + 1 );
+
+  }
 
   void Iterator(Node *tmp) {
 
