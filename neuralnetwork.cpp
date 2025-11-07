@@ -135,11 +135,11 @@ public:
     Node *output2 = newNode(0.7);
     initLayer();
 
-    displayNodePrevs(output1);    
+    //displayNodePrevs(output1);    
 
     breathFirst();
 
-    displayNodePrevs(output1);
+    //displayNodePrevs(output1);
   }
 
   void displayNodeNexts(Node* node)
@@ -164,7 +164,7 @@ public:
     int layerLevel = 1;
     for(list layer : layers)
     {
-      if(!layerLevel == 1)
+      if(layerLevel > 1)
       {
         for(Node* layerNode : layer)
         {
@@ -172,9 +172,11 @@ public:
           //calculate sum
           for(Link *link : layerNode->prevs)
           {
+            cout<<endl<<"data : " <<link->node->data;
             sum = sum + (link->weight) * (link->node->data);
-            cout<<endl<<sum;
           }
+          cout<<endl<<"sum : " <<sum;
+          
           layerNode->Sum = sum;
           //do sigma
           layerNode->data = sigma(sum);
