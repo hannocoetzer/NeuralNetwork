@@ -54,115 +54,124 @@ class Node;
 class Props{
   public:
     float weight;
-    float gradient; // this value is the (-1) x Error x Derivative( Activation func ) !! Activation func = SIGMOID(Sum)
+    float gradient;
     Props(float _weight,float _gradient) : weight(_weight), gradient(_gradient) {}
+
 };
 
 class Link {
-  public:
-    Node *node;
-    Props *props; //properties of this link : weight, gradient, etc
-    Link( Node *_node, Props* _props) :  node(_node), props(_props) {}
+
+public:
+  Node *node;
+  //float weight;
+  //float gradient; // this value is the (-1) x Error x Derivative( Activation func ) !! Activation func = SIGMOID(Sum)
+  Props *props;
+  Link( Node *_node, Props* _props) :  node(_node), props(_props) {}
 };
 
 class Node {
-  public:
-    float data;
-    float Sum;  // this value is the SUM OF ALL [linked(parent) node values x weights] 
-    list<Link *> nexts;
-    list<Link *> prevs;
+public:
+  float data;
+  float Sum;  // this value is the SUM OF ALL [linked(parent) node values x weights] 
+  list<Link *> nexts;
+  list<Link *> prevs;
 
-    Node(float value) : data(value) {
-      Sum = 0;
-    }
+  Node(float value) : data(value) {
+    Sum = 0;
+  }
+  void addNext(Link *_link) {
+    nexts.push_back(_link);
+  }
 
-    void addNext(Link *_link) {
-      nexts.push_back(_link);
-    }
-
-    void addPrev(Link *_link) {
-      prevs.push_back(_link);
-    }
+  void addPrev(Link *_link){
+    prevs.push_back(_link);
+  }
 };
 
 class NeuralNetwork {
-  private:
-    list<list<Node *>> layers;
-    list<Node *> tempLayer;
 
-  public:
-    NeuralNetwork() {}
+private:
 
-    void initLayer()
+  list<list<Node *>> layers;
+  list<Node *> tempLayer;
+
+
+
+public:
+  NeuralNetwork() {
+
+  }
+
+  void initLayer()
+  {
+    //ensures we don't add prevs to the input nodes
+    if(!layers.empty())
     {
-      //ensures we don't add prevs to the input nodes
-      if(!layers.empty())
-      {
-        for(Node* prev : layers.back())
-        {      
-          for(Node* next : tempLayer)
-          {
-            Props *newProps = new Props(prev->data + next->data,3);
-            prev->addNext(new Link(next,newProps));
-            next->addPrev(new Link(prev,newProps));
-          }
+      for(Node* prev : layers.back())
+      {      
+        for(Node* next : tempLayer)
+        {
+          Props *newProps = new Props(2,3);
+          prev->addNext(new Link(next,newProps));
+          next->addPrev(new Link(prev,newProps));
         }
       }
-
-      layers.push_back(tempLayer);   
-      tempLayer.clear(); 
     }
 
-    Node *newNode(float value) 
-    {
-      Node *newNode = new Node(value);
-      tempLayer.push_back(newNode);
-      return newNode; 
-    }
+    layers.push_back(tempLayer);   
+    tempLayer.clear(); 
+  }
 
-    void builder() {
+  Node *newNode(float value) 
+  {
+    Node *newNode = new Node(value);
+    tempLayer.push_back(newNode);
+    return newNode; 
+  }
 
-      Node *input1 = newNode(1);
-      Node *input2 = newNode(2);
-      initLayer();
+  void builder() {
+
+    Node *input1 = newNode(1);
+    Node *input2 = newNode(2);
+    initLayer();
     
-      Node *lvl1Node1 = newNode(3);
-      Node *lvl1Node2 = newNode(4);
-      Node *lvl1Node3 = newNode(5);
-      initLayer();
+    Node *lvl1Node1 = newNode(3);
+    Node *lvl1Node2 = newNode(4);
+    Node *lvl1Node3 = newNode(5);
+    initLayer();
 
-      Node *output1 = newNode(6);
-      Node *output2 = newNode(7);
-      initLayer();
+    Node *output1 = newNode(6);
+    Node *output2 = newNode(7);
+    initLayer();
 
-      //displayNodePrevs(output1);
-      display();    
+    //displayNodePrevs(output1);
+    display();    
 
-      //breathFirst();
+    //breathFirst();
 
-      displayNodePrevs(output1);
-    }
+    //displayNodePrevs(output1);
+  }
 
-    void display()
+void display()
+{
+  for(list nodeList: layers){
+    cout<<endl;
+    for(Node *node: nodeList)
     {
-      for(list nodeList: layers){
-        cout<<endl;
-        for(Node *node: nodeList)
-        {
-          cout<<node->data;
-        }
-        cout<<endl;
-        for(Node *node: nodeList)
-        {
-          cout<<"/";
-          for(Link *link : node->nexts)
-          {
-            cout<<link->props->weight;
-            link->props->weight = link->props->weight + 0.7;
-          }      
-        }
-      }  
+      cout<<node->data;
     }
+    cout<<endl;
+    for(Node *node: nodeList)
+    {
+      cout<<"/";
+      for(Link *link : node->nexts)
+      {
+        cout<<link->props->weight;
+      }      
+    }
+  }
+  
+}
 
   void displayNodeNexts(Node* node)
   {
@@ -176,10 +185,10 @@ class NeuralNetwork {
   {
     for(Link* link: node->prevs)
     {
-      //cout<<endl<<"Sum : " <<link->node->Sum;
+      cout<<endl<<"Sum : " <<link->node->Sum;
       //cout<<endl<<"Weight : " <<link->weight;
-      cout<<"/"<<link->props->weight;
-      //cout<<endl<<"In/output " <<link->node->data;
+      cout<<endl<<"Weight : " <<link->props->weight;
+      cout<<endl<<"In/output " <<link->node->data;
     }
   }
   
