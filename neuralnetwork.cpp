@@ -89,15 +89,17 @@ public:
   float sum; // this value is the SUM OF ALL [linked(parent) node values x
              // weights]
   float dfSum;
+  bool isBias;
   list<Link *> nexts;
   list<Link *> prevs;
 
-  Node(float value) : data(value) {
+  Node(float value, bool _isBias) : data(value), isBias(_isBias) {
     sum = 0;
     delta = 0;
     dfSum = 0;
   }
-  Node(float value, float _ideal) : data(value), ideal(_ideal) {
+  Node(float value, float _ideal, bool _isBias)
+      : data(value), ideal(_ideal), isBias(_isBias) {
     sum = 0;
     delta = 0;
     dfSum = 0;
@@ -123,7 +125,10 @@ public:
         for (Node *next : tempLayer) {
           Props *newProps = new Props(prev->data + next->data, 3);
           prev->addNext(new Link(next, newProps));
-          next->addPrev(new Link(prev, newProps));
+
+          // only nodes that is not Bias nodes get to have prev links
+          if (!next->isBias)
+            next->addPrev(new Link(prev, newProps));
         }
       }
     }
@@ -132,8 +137,8 @@ public:
     tempLayer.clear();
   }
 
-  Node *newNode(float value) {
-    Node *newNode = new Node(value);
+  Node *newNode(float value, bool _isBias) {
+    Node *newNode = new Node(value, _isBias);
     tempLayer.push_back(newNode);
     return newNode;
   }
@@ -146,17 +151,17 @@ public:
 
   void builder() {
 
-    Node *input1 = newNode(1, 1);
-    Node *input2 = newNode(2);
+    Node *input1 = newNode(1, false);
+    Node *input2 = newNode(2, false);
     initLayer();
 
-    Node *lvl1Node1 = newNode(3);
-    Node *lvl1Node2 = newNode(4);
-    Node *lvl1Node3 = newNode(5);
+    Node *lvl1Node1 = newNode(3, false);
+    Node *lvl1Node2 = newNode(4, false);
+    Node *lvl1Node3 = newNode(5, false);
     initLayer();
 
-    Node *output1 = newNode(6);
-    // Node *output2 = newNode(7);
+    Node *output1 = newNode(6, false);
+    // Node *output2 = newNode(7, false);
     initLayer();
     error();
 
@@ -199,11 +204,18 @@ public:
       // calculation for all hidden layers
       // δ[i] = σ'( Σ (O[j]) ) * Σ ( W[i] * δ[k] )
       for (Node *layerNode : layerNodes) {
-        float sumOfWeight;
+        float sumOfWeight = 0;
         for (Link *link : layerNode->nexts) {
-          sumOfWeight = sumOfWeight + (link->props->weight * link->node->delta);
+          sumOfWeight = sumOfWeight + link->props->weight;
         }
-        layerNode->delta = layerNode->dfSum * sumOfWeight;
+
+        if (!layerNode->isBias)
+          layerNode->delta = layerNode->dfSum * sumOfWeight * layerNode->delta;
+
+        for (Link *link : layerNode->nexts) {
+
+          link->props->gradient = layerNode->data * link->node->delta;
+        }
       }
     }
   }
