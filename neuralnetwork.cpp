@@ -63,46 +63,65 @@ https://www.youtube.com/watch?v=zUZRUTJbYm8
 
 */
 
+enum NodeType
+{
+  INPUT,
+  OUTPUT,
+  BIAS,
+  HIDDEN
+};
+
 class Node;
 
-class Props {
+class Props
+{
 public:
   float weight;
+  float momentum_multiplier;
   float gradient; // this value is the (-1) x Error x Derivative( Activation
                   // func ) !! Activation func = SIGMOID(Sum)
   Props(float _weight, float _gradient)
-      : weight(_weight), gradient(_gradient) {}
+      : weight(_weight), gradient(_gradient) {
+        momentum_multiplier = 0;
+
+      }
 };
 
-class Link {
+class Link
+{
 public:
   Node *node;
   Props *props; // properties of this link : weight, gradient, etc
   Link(Node *_node, Props *_props) : node(_node), props(_props) {}
 };
 
-class Node {
+class Node
+{
 public:
   float data;
   float ideal;
   float delta;
-  float sum; // this value is the SUM OF ALL [linked(parent) node values x
-             // weights]
+  float sum; // this value is the SUM OF ALL [linked(parent) node values x weights]
   float dfSum;
-  bool isBias;
+  NodeType nodeType;
+
   list<Link *> nexts;
   list<Link *> prevs;
 
-  Node(float value, bool _isBias) : data(value), isBias(_isBias) {
+  Node(float value, NodeType _nodeType) : data(value)
+  {
     sum = 0;
     delta = 0;
     dfSum = 0;
+    nodeType = _nodeType;
   }
-  Node(float value, float _ideal, bool _isBias)
-      : data(value), ideal(_ideal), isBias(_isBias) {
+  Node(float value, float _ideal, NodeType _nodeType)
+      : data(value), ideal(_ideal)
+  {
     sum = 0;
     delta = 0;
     dfSum = 0;
+    nodeType = _nodeType;
   }
 
   void addNext(Link *_link) { nexts.push_back(_link); }
@@ -110,7 +129,8 @@ public:
   void addPrev(Link *_link) { prevs.push_back(_link); }
 };
 
-class NeuralNetwork {
+class NeuralNetwork
+{
 private:
   list<list<Node *>> layers;
   list<Node *> tempLayer;
@@ -118,16 +138,23 @@ private:
 public:
   NeuralNetwork() {}
 
-  void initLayer() {
+  void initLayer()
+  {
     // ensures we don't add prevs to the input nodes
-    if (!layers.empty()) {
-      for (Node *prev : layers.back()) {
-        for (Node *next : tempLayer) {
+    if (!layers.empty())
+    {
+      for (Node *prev : layers.back())
+      {
+        for (Node *next : tempLayer)
+        {
           Props *newProps = new Props(prev->data + next->data, 3);
-          prev->addNext(new Link(next, newProps));
 
-          // only nodes that is not Bias nodes get to have prev links
-          if (!next->isBias)
+          // nodes that are OUTPUT doesn't have next links
+          if (!next->nodeType == OUTPUT)
+            prev->addNext(new Link(next, newProps));
+
+          // nodes that is either BIAS nor INPUT nodes does not get to have prev links
+          else if (!next->nodeType == BIAS || !next->nodeType == INPUT)
             next->addPrev(new Link(prev, newProps));
         }
       }
@@ -137,49 +164,75 @@ public:
     tempLayer.clear();
   }
 
-  Node *newNode(float value, bool _isBias) {
-    Node *newNode = new Node(value, _isBias);
+  Node *newNode(float value, NodeType _nodeType)
+  {
+    Node *newNode = new Node(value, _nodeType);
     tempLayer.push_back(newNode);
     return newNode;
   }
 
-  Node *newNode(float value, float _ideal) {
-    Node *newNode = new Node(value, _ideal);
+  Node *newNode(float value, float _ideal, NodeType _nodeType)
+  {
+    Node *newNode = new Node(value, _ideal, _nodeType);
     tempLayer.push_back(newNode);
     return newNode;
   }
 
-  void builder() {
+  void builder()
+  {
 
-    Node *input1 = newNode(1, false);
-    Node *input2 = newNode(2, false);
+    Node *input1 = newNode(1, INPUT);
+    Node *input2 = newNode(2, INPUT);
     initLayer();
 
-    Node *lvl1Node1 = newNode(3, false);
-    Node *lvl1Node2 = newNode(4, false);
-    Node *lvl1Node3 = newNode(5, false);
+    Node *lvl1Node1 = newNode(3, HIDDEN);
+    Node *lvl1Node2 = newNode(4, HIDDEN);
+    Node *lvl1Node3 = newNode(5, HIDDEN);
     initLayer();
 
-    Node *output1 = newNode(6, false);
-    // Node *output2 = newNode(7, false);
+    Node *output1 = newNode(6, OUTPUT);
     initLayer();
     error();
 
-    depthFirst();
+    float learnRate = 0.7;
+    float momentumRate = 0.3;
 
-    // breathFirst();
+    breadthFirst();
+    depthFirst();
+    adjustWeights(learnRate, momentumRate);
   }
 
-  void display() {
-    for (list nodeList : layers) {
+  void adjustWeights(float learnRate, float momentumRate)
+  {
+    for(list layer : layers)
+    {
+      for(Node *layerNode : layer)
+      {
+        for(Link *link : layerNode->nexts)
+        { 
+          link->props->momentum_multiplier = learnRate * link->props->gradient + momentumRate * link->props->momentum_multiplier;
+
+          link->props->weight = link->props->weight + link->props->momentum_multiplier;
+        }
+      }
+    }
+  }
+
+  void display()
+  {
+    for (list nodeList : layers)
+    {
       cout << endl;
-      for (Node *node : nodeList) {
+      for (Node *node : nodeList)
+      {
         cout << node->data;
       }
       cout << endl;
-      for (Node *node : nodeList) {
+      for (Node *node : nodeList)
+      {
         cout << "/";
-        for (Link *link : node->nexts) {
+        for (Link *link : node->nexts)
+        {
           cout << link->props->weight;
           link->props->weight = link->props->weight + 0.8;
         }
@@ -187,60 +240,74 @@ public:
     }
   }
 
-  void depthFirst() {
+  void depthFirst()
+  {
 
     list<list<Node *>>::reverse_iterator it;
-    for (it = layers.rbegin(); it != layers.rend(); it++) {
+    for (it = layers.rbegin(); it != layers.rend(); it++)
+    {
       list<Node *> layerNodes = *it;
-
-      // calculation for output nodes only
-      for (Node *layerNode : layerNodes) {
-        cout << endl << layerNode->data;
-        float error = layerNode->data - layerNode->ideal;
-        float delta = (-1) * error * layerNode->dfSum;
-        layerNode->delta = delta;
-      }
 
       // calculation for all hidden layers
       // δ[i] = σ'( Σ (O[j]) ) * Σ ( W[i] * δ[k] )
-      for (Node *layerNode : layerNodes) {
-        float sumOfWeight = 0;
-        for (Link *link : layerNode->nexts) {
-          sumOfWeight = sumOfWeight + link->props->weight;
-        }
+      for (Node *layerNode : layerNodes)
+      {
+        // calculation for OUTPUT nodes only
+        if (layerNode->nexts.empty())
+        {
+          //cout << endl << layerNode->data;
+          float error = layerNode->data - layerNode->ideal;
+          float delta = (-1) * error * layerNode->dfSum;
+          layerNode->delta = delta;
+        }       
+        
+        // skip calculations for BIAS and INPUT nodes
+        if (!layerNode->prevs.empty())
+        {
+          float sumOfWeight = 0;
+          for (Link *link : layerNode->nexts)
+          {
+            sumOfWeight = sumOfWeight + link->props->weight;
+          }
 
-        if (!layerNode->isBias)
           layerNode->delta = layerNode->dfSum * sumOfWeight * layerNode->delta;
 
-        for (Link *link : layerNode->nexts) {
-
-          link->props->gradient = layerNode->data * link->node->delta;
+          for (Link *link : layerNode->nexts)
+          {
+            link->props->gradient = layerNode->data * link->node->delta;
+          }
         }
       }
     }
   }
 
-  void breadthFirst() {
+  void breadthFirst()
+  {
     int layerLevel = 1;
-    for (list layer : layers) {
-      if (layerLevel > 1) {
-        for (Node *layerNode : layer) {
+    for (list layer : layers)
+    {
+      if (layerLevel > 1)
+      {
+        for (Node *layerNode : layer)
+        {
 
           float sum = 0;
-          for (Link *link : layerNode->prevs) {
+          for (Link *link : layerNode->prevs)
+          {
             sum = sum + (link->props->weight) * (link->node->data);
           }
           // cout << endl << "sum : " << sum;
           layerNode->sum = sum;
-          layerNode->data = sigma(sum);
-          layerNode->dfSum = sigmaDerivative(layerNode->data);
+          layerNode->data = sigmoid(sum);
+          layerNode->dfSum = sigmoidDerivative(sum); //NOTE:or sigmoid value as input
         }
       }
       layerLevel++;
     }
   }
 
-  float sigma(float x) {
+  float sigmoid(float x)
+  {
     // faster as mentioned here
     // https://stackoverflow.com/questions/10732027/fast-sigmoid-algorithm
     // return value / (1 + abs(value));
@@ -249,20 +316,23 @@ public:
     return 1 / (1 + pow(e, x));
   }
 
-  float sigmaDerivative(float x) {
+  float sigmoidDerivative(float x)
+  {
     // f'=(e^x)/[e^(2x)+2e^(x)+1]
     const float e = 2.71828;
     return pow(e, x) / (pow(e, 2 * x) + 2 * pow(e, x) + 1);
   }
 
-  float error() {
+  float error()
+  {
     // [(I1-A1)^2 + (I2-A2)^2 + (I3-A3)^2 + (In-An)^2]/ n
 
     float error = 0.0;
     float sum = 0.0;
     int nodeCount = 1;
 
-    for (Node *node : layers.back()) {
+    for (Node *node : layers.back())
+    {
       sum = sum + pow((node->ideal - node->data), 2);
       nodeCount++;
     }
@@ -270,7 +340,8 @@ public:
   }
 };
 
-int main() {
+int main()
+{
   NeuralNetwork nn;
   nn.builder();
 
