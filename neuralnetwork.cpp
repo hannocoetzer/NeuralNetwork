@@ -211,6 +211,7 @@ public:
         for(Link *link : layerNode->nexts)
         { 
           link->props->momentum_multiplier = learnRate * link->props->gradient + momentumRate * link->props->momentum_multiplier;
+          //Batch learning : use the same formula as above but replace link->props->gradient with the total of all gradients
 
           link->props->weight = link->props->weight + link->props->momentum_multiplier;
         }
@@ -283,6 +284,7 @@ public:
 
   void breadthFirst()
   {
+    //skip first layer INPUT nodes
     int layerLevel = 1;
     for (list layer : layers)
     {
@@ -331,6 +333,7 @@ public:
     float sum = 0.0;
     int nodeCount = 1;
 
+    //do error calculation on the last OUTPUT nodes
     for (Node *node : layers.back())
     {
       sum = sum + pow((node->ideal - node->data), 2);
