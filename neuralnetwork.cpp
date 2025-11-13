@@ -7,6 +7,8 @@
 #include <set>
 #include <stack>
 #include <string>
+#include <iostream>
+#include <random>
 using namespace std;
 
 // todo
@@ -146,16 +148,32 @@ public:
       for (Node *prev : layers.back())
       {
         for (Node *next : tempLayer)
-        {
-          Props *newProps = new Props(prev->data + next->data, 3);
+        {          
+          //float r = rand() / (RAND_MAX + 1.);
+          const int range_from  = -1000;
+          const int range_to    = 1000;
+          std::random_device                  rand_dev;
+          std::mt19937                        generator(rand_dev());
+          std::uniform_int_distribution<int>  distr(range_from, range_to);
+          float r = (float)distr(generator)/1000;
 
-          // nodes that are OUTPUT doesn't have next links
-          if (!next->nodeType == OUTPUT)
+          Props *newProps = new Props(prev->data + next->data, r);
+
+          //connect all prev Nodes with next Nodes, except when next Node is a BIAS node
+          if(!(next->nodeType == BIAS))
+          {
+            //if(!(next->nodeType == OUTPUT))
             prev->addNext(new Link(next, newProps));
-
-          // nodes that is either BIAS nor INPUT nodes does not get to have prev links
-          else if (!next->nodeType == BIAS || !next->nodeType == INPUT)
             next->addPrev(new Link(prev, newProps));
+          }
+
+          // // nodes that are OUTPUT doesn't have next links
+          // if (!(next->nodeType == OUTPUT))
+          //   prev->addNext(new Link(next, newProps));
+
+          // // nodes that is either BIAS nor INPUT nodes does not get to have prev links
+          // else if (!(next->nodeType == BIAS) || !(next->nodeType == INPUT))
+          //   next->addPrev(new Link(prev, newProps));
         }
       }
     }
@@ -181,25 +199,60 @@ public:
   void builder()
   {
 
-    Node *input1 = newNode(1, INPUT);
-    Node *input2 = newNode(2, INPUT);
+    Node *input1 = newNode(0, INPUT);
+    Node *input2 = newNode(0, INPUT);
+    Node *inputBias = newNode(1,BIAS);
     initLayer();
 
-    Node *lvl1Node1 = newNode(3, HIDDEN);
-    Node *lvl1Node2 = newNode(4, HIDDEN);
-    Node *lvl1Node3 = newNode(5, HIDDEN);
+    Node *lvl1Node1 = newNode(1, HIDDEN);
+    Node *lvl1Node2 = newNode(1, HIDDEN);
+    Node *lvl1Node3 = newNode(1, HIDDEN);
+    Node *lvl1Bias2 = newNode(1,BIAS);
     initLayer();
 
-    Node *output1 = newNode(6, OUTPUT);
+    Node *output1 = newNode(1,0, OUTPUT);
     initLayer();
-    error();
+
+    float errorRate = error();
 
     float learnRate = 0.7;
     float momentumRate = 0.3;
 
-    breadthFirst();
-    depthFirst();
-    adjustWeights(learnRate, momentumRate);
+    bool isTrainedWell = false;
+
+    while(!isTrainedWell)
+    {
+      breadthFirst();
+      depthFirst();
+
+      errorRate = error();
+      cout<<"ErrorRate : "<<errorRate<<endl;
+      
+      adjustWeights(learnRate, momentumRate);
+      
+      if(errorRate < 0.01)
+        isTrainedWell = true;
+
+      //change input values
+    }
+
+    int testRuns = 5;
+    while(testRuns > 0)
+    {
+      int userInput1 = 0;
+      int userInput2 = 0;
+
+      cout<<endl<<"Input 1 :"<<endl;
+      cin>>userInput1;
+      input1->data = userInput1;
+      cout<<"Input 2 : "<<endl;
+      cin>>userInput2;
+      input2->data = userInput2;
+
+      breadthFirst();
+
+      cout<<"Output : "<< output1->data;
+    }
   }
 
   void adjustWeights(float learnRate, float momentumRate)
@@ -292,7 +345,6 @@ public:
       {
         for (Node *layerNode : layer)
         {
-
           float sum = 0;
           for (Link *link : layerNode->prevs)
           {
