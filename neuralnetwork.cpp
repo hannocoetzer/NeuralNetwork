@@ -277,9 +277,9 @@ public:
   void builder()
   {
 
-    tester();
+    //tester();
 
-    /*Node *input1 = newNode(0, INPUT);
+    Node *input1 = newNode(0, INPUT);
     Node *input2 = newNode(0, INPUT);
     Node *inputBias = newNode(1,BIAS);
     initLayer();
@@ -300,25 +300,27 @@ public:
     //online training
     input1->data = 1;
     input2->data = 0;
+    output1->data = 0.75;
     output1->ideal = 1;
     while(!isTrainedWell)
     {
       breadthFirst();
 
-      errorRate = error();
-      cout<<endl<<errorRate;
+      //errorRate = error();
+      //cout<<endl<<errorRate;
 
-      if(errorRate < 0.1)
+      if(errorRate < 0.001)
       {
 
-        cout<<endl<<input1->data<< " XOR "<<input2->data<<" -> "<<output1->data;
+        //cout<<endl<<input1->data<< " XOR "<<input2->data<<" -> "<<output1->data;
         isTrainedWell = true;
       }
       else{
-        depthFirst();
+        cout<<endl<<output1->data;
+        breadthFirst();
         adjustWeights(learnRate,momentumRate);
       }
-    }*/
+    }
 
     //batch training attempt
     //Note : check if error gets called
@@ -377,6 +379,8 @@ public:
           link->props->weight_adjustment = learnRate * link->props->gradient + momentumRate * link->props->weight_adjustment;
           
           link->props->weight = link->props->weight + link->props->weight_adjustment;
+          float errorRate = error();
+
           int x = 0;
         }
       }
@@ -392,7 +396,7 @@ public:
 
       for (Node *layerNode : layerNodes)
       {
-        
+
       }
     }
   }
