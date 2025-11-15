@@ -9,9 +9,13 @@
 #include <string>
 #include <iostream>
 #include <random>
+#include <vector>
+
 using namespace std;
 
 // todo
+// ----
+// depth first weird on sum and delta calculations
 //  Error calculation
 //  f'(x)
 
@@ -157,7 +161,7 @@ public:
           std::uniform_int_distribution<int>  distr(range_from, range_to);
           float r = (float)distr(generator)/1000;
 
-          Props *newProps = new Props(prev->data + next->data, r);
+          Props *newProps = new Props(r, 0);
 
           //connect all prev Nodes with next Nodes, except when next Node is a BIAS node
           if(!(next->nodeType == BIAS))
@@ -196,8 +200,81 @@ public:
     return newNode;
   }
 
+  void tester(){
+    Node *i1 = newNode(1, INPUT);
+    Node *i2 = newNode(0, INPUT);
+    Node *b1 = newNode(1,BIAS);
+    i1->data = 1;
+
+    layers.push_back(tempLayer);
+    tempLayer.clear();
+
+    Node *h1 = newNode(1, HIDDEN);
+    h1->dfSum = sigmoidDerivative(-0.53);
+    h1->data = 0.37;
+
+    Node *h2 = newNode(1, HIDDEN);
+    h2->dfSum = sigmoidDerivative(1.05);
+    h2->data = 0.74;
+
+    Node *b2 = newNode(1,BIAS);
+    b2->data = 1;
+
+    layers.push_back(tempLayer);
+    tempLayer.clear();
+    
+    Node *o1 = newNode(1,0, OUTPUT);
+    o1->dfSum = sigmoidDerivative(1.13);
+    o1->data = 0.75;
+    o1->ideal = 1;
+
+    layers.push_back(tempLayer);
+    tempLayer.clear();
+    
+    Props *i1h1 = new Props(-0.07, 0);
+    i1->addNext(new Link(h1,i1h1));
+    h1->addPrev(new Link(i1,i1h1));
+
+    Props *i1h2 = new Props(0.94, 0);
+    i1->addNext(new Link(h2,i1h2));
+    h2->addPrev(new Link(i1,i1h2));
+
+    Props *i2h1 = new Props(0.94, 0);
+    i2->addNext(new Link(h1,i2h1));
+    h1->addPrev(new Link(i2,i2h1));
+
+    Props *i2h2 = new Props(0.46, 0);
+    i2->addNext(new Link(h2,i2h2));
+    h2->addPrev(new Link(i2,i2h2)); 
+
+    Props *b1h1 = new Props(-0.46, 0);
+    b1->addNext(new Link(h1,b1h1));
+    h1->addPrev(new Link(b1,b1h1)); 
+
+    Props *b1h2 = new Props(0.10, 0);
+    b1->addNext(new Link(h2,b1h2));
+    h2->addPrev(new Link(b1,b1h2)); 
+
+    Props *h1o1 = new Props(-0.22, 0);
+    h1->addNext(new Link(o1,h1o1));
+    o1->addPrev(new Link(h1,h1o1)); 
+
+    Props *h2o1 = new Props(0.58, 0);
+    h2->addNext(new Link(o1,h2o1));
+    o1->addPrev(new Link(h2,h2o1)); 
+
+     Props *b2o1 = new Props(0.78, 0);
+    b2->addNext(new Link(o1,b2o1));
+    o1->addPrev(new Link(b2,b2o1));  
+  
+    depthFirst();
+    adjustWeights(0.7,0.3);
+  }
+
   void builder()
   {
+
+    tester();
 
     Node *input1 = newNode(0, INPUT);
     Node *input2 = newNode(0, INPUT);
@@ -206,35 +283,64 @@ public:
 
     Node *lvl1Node1 = newNode(1, HIDDEN);
     Node *lvl1Node2 = newNode(1, HIDDEN);
-    Node *lvl1Node3 = newNode(1, HIDDEN);
     Node *lvl1Bias2 = newNode(1,BIAS);
     initLayer();
 
-    Node *output1 = newNode(1,0, OUTPUT);
+    Node *output1 = newNode(1, OUTPUT);
     initLayer();
 
     float errorRate = error();
-
     float learnRate = 0.7;
     float momentumRate = 0.3;
-
     bool isTrainedWell = false;
 
+    //online training
+    input1->data = 1;
+    input2->data = 0;
+    output1->ideal = 1;
     while(!isTrainedWell)
     {
       breadthFirst();
       depthFirst();
 
       errorRate = error();
-      cout<<"ErrorRate : "<<errorRate<<endl;
-      
-      adjustWeights(learnRate, momentumRate);
-      
-      if(errorRate < 0.01)
-        isTrainedWell = true;
+      cout<<endl<<errorRate;
 
-      //change input values
+      if(errorRate < 0.1)
+      {
+        isTrainedWell = true;
+      }
+      else{
+        adjustWeights(learnRate,momentumRate);
+      }
     }
+
+    //batch training attempt
+    //Note : check if error gets called
+    /*int trainingsetNth = 0;
+    vector<tuple<int,int,int>> trainingSet;
+    trainingSet.push_back(make_tuple(0,0,0));
+    trainingSet.push_back(make_tuple(0,1,1));
+    trainingSet.push_back(make_tuple(1,0,1));
+    trainingSet.push_back(make_tuple(1,1,0));
+    while(!isTrainedWell)
+    {
+      breadthFirst();
+      depthFirst();
+      cout<<"ErrorRate : "<<errorRate<<endl;      
+      adjustWeights(learnRate, momentumRate);      
+      if(errorRate < 0.001)
+      {
+        input1->data = get<0>(trainingSet[trainingsetNth]);
+        input2->data = get<1>(trainingSet[trainingsetNth]);
+        output1->ideal = get<2>(trainingSet[trainingsetNth]);
+
+        if(trainingsetNth % 3 == 0 ){    
+          trainingsetNth ++;
+          isTrainedWell = true;
+        }
+      }      
+    }*/
 
     int testRuns = 5;
     while(testRuns > 0)
@@ -248,9 +354,7 @@ public:
       cout<<"Input 2 : "<<endl;
       cin>>userInput2;
       input2->data = userInput2;
-
-      breadthFirst();
-
+      //breadthFirst(); //Note : this need to change into a proper calculator to determine the output
       cout<<"Output : "<< output1->data;
     }
   }
@@ -294,6 +398,21 @@ public:
     }
   }
 
+  void clearGradients()
+  {
+    for (list nodeList : layers)
+    {
+
+      for (Node *node : nodeList)
+      {
+        for (Link *link : node->nexts)
+        {
+          link->props->gradient = 0;
+        }
+      }
+    }
+  }
+
   void depthFirst()
   {
 
@@ -316,7 +435,8 @@ public:
         }       
         
         // skip calculations for BIAS and INPUT nodes
-        if (!layerNode->prevs.empty())
+       // if (!layerNode->prevs.empty())
+       if(!(layerNode->nodeType == BIAS) && !(layerNode->nodeType == OUTPUT))
         {
           float sumOfWeight = 0;
           for (Link *link : layerNode->nexts)
@@ -324,11 +444,16 @@ public:
             sumOfWeight = sumOfWeight + link->props->weight;
           }
 
-          layerNode->delta = layerNode->dfSum * sumOfWeight * layerNode->delta;
-
           for (Link *link : layerNode->nexts)
           {
+
+            layerNode->delta = layerNode->dfSum * sumOfWeight * link->node->delta;
+
+            //online training
             link->props->gradient = layerNode->data * link->node->delta;
+            
+            //batch training | we use the total of the gradient
+            //link->props->gradient = link->props->gradient + (layerNode->data * link->node->delta);
           }
         }
       }
