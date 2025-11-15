@@ -83,12 +83,15 @@ class Props
 {
 public:
   float weight;
+  float weight_adjustment;
   float momentum_multiplier;
   float gradient; // this value is the (-1) x Error x Derivative( Activation
                   // func ) !! Activation func = SIGMOID(Sum)
+              
   Props(float _weight, float _gradient)
       : weight(_weight), gradient(_gradient) {
         momentum_multiplier = 0;
+        weight_adjustment = 0;
 
       }
 };
@@ -276,7 +279,7 @@ public:
 
     tester();
 
-    Node *input1 = newNode(0, INPUT);
+    /*Node *input1 = newNode(0, INPUT);
     Node *input2 = newNode(0, INPUT);
     Node *inputBias = newNode(1,BIAS);
     initLayer();
@@ -290,8 +293,8 @@ public:
     initLayer();
 
     float errorRate = error();
-    float learnRate = 0.7;
-    float momentumRate = 0.3;
+    float learnRate = 0.87;
+    float momentumRate = 0.4;
     bool isTrainedWell = false;
 
     //online training
@@ -301,19 +304,21 @@ public:
     while(!isTrainedWell)
     {
       breadthFirst();
-      depthFirst();
 
       errorRate = error();
       cout<<endl<<errorRate;
 
       if(errorRate < 0.1)
       {
+
+        cout<<endl<<input1->data<< " XOR "<<input2->data<<" -> "<<output1->data;
         isTrainedWell = true;
       }
       else{
+        depthFirst();
         adjustWeights(learnRate,momentumRate);
       }
-    }
+    }*/
 
     //batch training attempt
     //Note : check if error gets called
@@ -340,7 +345,7 @@ public:
           isTrainedWell = true;
         }
       }      
-    }*/
+    }
 
     int testRuns = 5;
     while(testRuns > 0)
@@ -356,7 +361,7 @@ public:
       input2->data = userInput2;
       //breadthFirst(); //Note : this need to change into a proper calculator to determine the output
       cout<<"Output : "<< output1->data;
-    }
+    }*/
   }
 
   void adjustWeights(float learnRate, float momentumRate)
@@ -367,15 +372,30 @@ public:
       {
         for(Link *link : layerNode->nexts)
         { 
-          link->props->momentum_multiplier = learnRate * link->props->gradient + momentumRate * link->props->momentum_multiplier;
+          //link->props->momentum_multiplier = learnRate * link->props->gradient + momentumRate * link->props->momentum_multiplier;
           //Batch learning : use the same formula as above but replace link->props->gradient with the total of all gradients
-
-          link->props->weight = link->props->weight + link->props->momentum_multiplier;
+          link->props->weight_adjustment = learnRate * link->props->gradient + momentumRate * link->props->weight_adjustment;
+          
+          link->props->weight = link->props->weight + link->props->weight_adjustment;
+          int x = 0;
         }
       }
     }
   }
 
+  void adjustWeightsv2(float learnRate, float momentumRate)
+  {
+    list<list<Node *>>::reverse_iterator it;
+    for (it = layers.rbegin(); it != layers.rend(); it++)
+    {
+      list<Node *> layerNodes = *it;
+
+      for (Node *layerNode : layerNodes)
+      {
+        
+      }
+    }
+  }
   void display()
   {
     for (list nodeList : layers)
@@ -454,6 +474,7 @@ public:
             
             //batch training | we use the total of the gradient
             //link->props->gradient = link->props->gradient + (layerNode->data * link->node->delta);
+            int x = 0;
           }
         }
       }
