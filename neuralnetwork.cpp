@@ -13,12 +13,6 @@
 
 using namespace std;
 
-// todo
-// ----
-// depth first weird on sum and delta calculations
-//  Error calculation
-//  f'(x)
-
 /*
 extra tools
 https://www.tinkershop.net/ml/sigmoid_calculator.html
@@ -119,6 +113,7 @@ public:
 
   Node(float value, NodeType _nodeType) : data(value)
   {
+    data = value;
     sum = 0;
     delta = 0;
     dfSum = 0;
@@ -173,14 +168,6 @@ public:
             prev->addNext(new Link(next, newProps));
             next->addPrev(new Link(prev, newProps));
           }
-
-          // // nodes that are OUTPUT doesn't have next links
-          // if (!(next->nodeType == OUTPUT))
-          //   prev->addNext(new Link(next, newProps));
-
-          // // nodes that is either BIAS nor INPUT nodes does not get to have prev links
-          // else if (!(next->nodeType == BIAS) || !(next->nodeType == INPUT))
-          //   next->addPrev(new Link(prev, newProps));
         }
       }
     }
@@ -270,7 +257,7 @@ public:
     b2->addNext(new Link(o1,b2o1));
     o1->addPrev(new Link(b2,b2o1));  
   
-    depthFirst();
+    backPropagation();
     adjustWeights(0.7,0.3);
   }
 
@@ -299,25 +286,20 @@ public:
 
     //online training
     input1->data = 1;
-    input2->data = 0;
-    output1->data = 0.75;
-    output1->ideal = 1;
+    input2->data = 1;
+    output1->ideal = 0;
     while(!isTrainedWell)
     {
-      breadthFirst();
-
-      //errorRate = error();
-      //cout<<endl<<errorRate;
-
-      if(errorRate < 0.001)
+      forwardFeeding();
+      errorRate = error();
+      cout<<endl<<"Error rate : "<<errorRate<<"     Output : "<<output1->data;
+      
+      if(errorRate < 0.01)
       {
-
-        //cout<<endl<<input1->data<< " XOR "<<input2->data<<" -> "<<output1->data;
         isTrainedWell = true;
       }
       else{
-        cout<<endl<<output1->data;
-        breadthFirst();
+        backPropagation();
         adjustWeights(learnRate,momentumRate);
       }
     }
@@ -330,40 +312,58 @@ public:
     trainingSet.push_back(make_tuple(0,1,1));
     trainingSet.push_back(make_tuple(1,0,1));
     trainingSet.push_back(make_tuple(1,1,0));
+
+    input1->data = get<0>(trainingSet[trainingsetNth]);
+    input2->data = get<1>(trainingSet[trainingsetNth]);
+    output1->ideal = get<2>(trainingSet[trainingsetNth]);   
     while(!isTrainedWell)
     {
-      breadthFirst();
-      depthFirst();
-      cout<<"ErrorRate : "<<errorRate<<endl;      
-      adjustWeights(learnRate, momentumRate);      
-      if(errorRate < 0.001)
-      {
-        input1->data = get<0>(trainingSet[trainingsetNth]);
-        input2->data = get<1>(trainingSet[trainingsetNth]);
-        output1->ideal = get<2>(trainingSet[trainingsetNth]);
+        clearGradients();
+        float errorSum = 0;
+        for(int n = 0;n<=3;n++)
+        {
+          
+          input1->data = get<0>(trainingSet[n]);
+          input2->data = get<1>(trainingSet[n]);
+          output1->ideal = get<2>(trainingSet[n]);
 
-        if(trainingsetNth % 3 == 0 ){    
-          trainingsetNth ++;
-          isTrainedWell = true;
-        }
-      }      
+          forwardFeeding();
+          backPropagation();
+          adjustWeights(learnRate,momentumRate);
+
+          errorSum = errorSum + error();
+
+          cout<<endl<<"Error rate : "<<errorRate<<"     Output : "<<errorSum / n;
+          if(n==3 && (errorSum / n) < 0.02)
+          {
+            isTrainedWell = true;            
+          }
+      }  
     }
-
-    int testRuns = 5;
-    while(testRuns > 0)
+    for(int n = 0;n<=3;n++)
     {
-      int userInput1 = 0;
-      int userInput2 = 0;
+      input1->data = get<0>(trainingSet[n]);
+      input2->data = get<1>(trainingSet[n]);      
+      forwardFeeding();
 
-      cout<<endl<<"Input 1 :"<<endl;
-      cin>>userInput1;
-      input1->data = userInput1;
-      cout<<"Input 2 : "<<endl;
-      cin>>userInput2;
-      input2->data = userInput2;
-      //breadthFirst(); //Note : this need to change into a proper calculator to determine the output
-      cout<<"Output : "<< output1->data;
+      cout<<endl<<get<0>(trainingSet[n])<<" "<<get<1>(trainingSet[n])<<" "<<output1->data;
+
     }*/
+
+  }
+
+  void clearGradients()
+  {
+    for(list layer : layers)
+    {
+      for(Node *layerNode : layer)
+      {
+        for(Link *link : layerNode->nexts)
+        { 
+          link->props->gradient = 0;
+        }
+      }
+    }
   }
 
   void adjustWeights(float learnRate, float momentumRate)
@@ -377,29 +377,12 @@ public:
           //link->props->momentum_multiplier = learnRate * link->props->gradient + momentumRate * link->props->momentum_multiplier;
           //Batch learning : use the same formula as above but replace link->props->gradient with the total of all gradients
           link->props->weight_adjustment = learnRate * link->props->gradient + momentumRate * link->props->weight_adjustment;
-          
           link->props->weight = link->props->weight + link->props->weight_adjustment;
-          float errorRate = error();
-
-          int x = 0;
         }
       }
     }
   }
 
-  void adjustWeightsv2(float learnRate, float momentumRate)
-  {
-    list<list<Node *>>::reverse_iterator it;
-    for (it = layers.rbegin(); it != layers.rend(); it++)
-    {
-      list<Node *> layerNodes = *it;
-
-      for (Node *layerNode : layerNodes)
-      {
-
-      }
-    }
-  }
   void display()
   {
     for (list nodeList : layers)
@@ -422,24 +405,8 @@ public:
     }
   }
 
-  void clearGradients()
+  void backPropagation()
   {
-    for (list nodeList : layers)
-    {
-
-      for (Node *node : nodeList)
-      {
-        for (Link *link : node->nexts)
-        {
-          link->props->gradient = 0;
-        }
-      }
-    }
-  }
-
-  void depthFirst()
-  {
-
     list<list<Node *>>::reverse_iterator it;
     for (it = layers.rbegin(); it != layers.rend(); it++)
     {
@@ -452,15 +419,14 @@ public:
         // calculation for OUTPUT nodes only
         if (layerNode->nexts.empty())
         {
-          //cout << endl << layerNode->data;
           float error = layerNode->data - layerNode->ideal;
           float delta = (-1) * error * layerNode->dfSum;
           layerNode->delta = delta;
         }       
         
         // skip calculations for BIAS and INPUT nodes
-       // if (!layerNode->prevs.empty())
-       if(!(layerNode->nodeType == BIAS) && !(layerNode->nodeType == OUTPUT))
+        //if(!(layerNode->nodeType == BIAS) && !(layerNode->nodeType == OUTPUT))
+        if(!(layerNode->nodeType == OUTPUT))
         {
           float sumOfWeight = 0;
           for (Link *link : layerNode->nexts)
@@ -470,7 +436,6 @@ public:
 
           for (Link *link : layerNode->nexts)
           {
-
             layerNode->delta = layerNode->dfSum * sumOfWeight * link->node->delta;
 
             //online training
@@ -485,7 +450,7 @@ public:
     }
   }
 
-  void breadthFirst()
+  void forwardFeeding()
   {
     //skip first layer INPUT nodes
     int layerLevel = 1;
@@ -500,10 +465,26 @@ public:
           {
             sum = sum + (link->props->weight) * (link->node->data);
           }
-          // cout << endl << "sum : " << sum;
           layerNode->sum = sum;
-          layerNode->data = sigmoid(sum);
-          layerNode->dfSum = sigmoidDerivative(sum); //NOTE:or sigmoid value as input
+
+          //--Sigmoid activation function
+          /*layerNode->data = sigmoid(sum);             //Activation function
+          layerNode->dfSum = sigmoidDerivative(sum);  //Derivative of activation function, used for backPropagation calculations
+          */
+
+          //--ReLU activation function
+          float ReLU = 0;
+          if (sum < 0){
+            layerNode->data = 0;
+            //layerNode->dfSum = 0;                     //https://datascience.stackexchange.com/questions/19272/deep-neural-network-backpropogation-with-relu
+            layerNode->dfSum = sigmoidDerivative(sum);  //https://github.com/nandhakumarg52/ReLU-solves-XOR | Works the best
+          }
+          else
+          {
+            layerNode->data = sum;
+            //layerNode->dfSum = 1;
+            layerNode->dfSum = sigmoidDerivative(sum);  
+          }
         }
       }
       layerLevel++;
@@ -533,15 +514,15 @@ public:
 
     float error = 0.0;
     float sum = 0.0;
-    int nodeCount = 1;
+    int outputNodeCount = 0;
 
     //do error calculation on the last OUTPUT nodes
     for (Node *node : layers.back())
     {
       sum = sum + pow((node->ideal - node->data), 2);
-      nodeCount++;
+      outputNodeCount++;
     }
-    return sum / nodeCount;
+    return sum / outputNodeCount;
   }
 };
 
