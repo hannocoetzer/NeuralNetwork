@@ -82,6 +82,7 @@ public:
   float gradient; // this value is the (-1) x Error x Derivative( Activation
                   // func ) !! Activation func = SIGMOID(Sum)
   float gradientTotal;
+  bool isSameSign;
 
   Props(float _weight, float _gradient)
       : weight(_weight), gradient(_gradient)
@@ -89,6 +90,7 @@ public:
     momentum_multiplier = 0;
     weight_adjustment = 0;
     gradientTotal = 0;
+    isSameSign = false;
   }
 };
 
@@ -109,6 +111,7 @@ public:
   float sum; // this value is the SUM OF ALL [linked(parent) node values x weights]
   float dfSum;
   NodeType nodeType;
+  //bool isSameSign;
 
   list<Link *> nexts;
   list<Link *> prevs;
@@ -153,7 +156,7 @@ public:
       {
         for (Node *next : tempLayer)
         {
-          Props *newProps = new Props(random(), 0);
+          Props *newProps = new Props(random(-10, 10, 1), 0);
 
           // connect all prev Nodes with next Nodes, except when next Node is a BIAS node
           if (!(next->nodeType == BIAS))
@@ -275,7 +278,7 @@ public:
     initLayer();
 
     float errorRate = error();
-    float learnRate = 0.7;
+    float learnRate = 0.1;
     float momentumRate = 0.3;
     bool isTrainedWell = false;
 
@@ -303,8 +306,8 @@ public:
 
     // batch training
     int trainingsetNth = 0;
-    vector<tuple<int, int, int>> trainingSet;
-    //XOR
+    int resetCount;
+    vector<tuple<int, int, int>> trainingSet; // XOR
     trainingSet.push_back(make_tuple(0, 0, 0));
     trainingSet.push_back(make_tuple(0, 1, 1));
     trainingSet.push_back(make_tuple(1, 0, 1));
@@ -322,31 +325,41 @@ public:
         forwardFeeding();
         float errorRate = error();
         totalError = totalError + errorRate;
-        cout<<endl<<input1->data<<" "<<input2->data<<" "<<output1->data;
+        backPropagation(errorRate);
+        cout << endl
+             << input1->data << " " << input2->data << " " << output1->data;
       }
 
       totalError = totalError / 4;
 
-      if (totalError > 0.1)
+      if (totalError > 0.03)
       {
-        for (int n = 0; n <= 3; n++)
-        {
-          input1->data = get<0>(trainingSet[n]);
-          input2->data = get<1>(trainingSet[n]);
-          output1->ideal = get<2>(trainingSet[n]);
-          forwardFeeding(); //I think we have to do this before running backwardpropagation !! will be very inefficient
-          backPropagation(totalError);
-        }
-        cout<<endl<<"Error : "<<totalError;
+        cout << endl
+             << "Error : " << totalError;
+      
+        adjustWeights(0.7, 0.3);
+        trainingsetNth++;
+        cout << endl
+            << "nth : " << trainingsetNth;
+        cout << endl
+            << "Reset count : " << resetCount;
       }
       else
       {
         isTrainedWell = true;
+        display();
       }
 
-      adjustWeights(0.7, 0.3);
-      trainingsetNth++;
-      cout<<endl<<"nth : "<<trainingsetNth;
+      // ensure we start with a good set of initial random weights OR do not keep on to long with training
+      //if (totalError > 0.4 || trainingsetNth > 1000) // optimistic for NN
+     if(totalError > 0.40 || trainingsetNth > 3000)  //pesimistic for NN
+      {
+        resetRandomWeights();
+        trainingsetNth = 0;
+        resetCount++;
+        cout << endl
+             << "reseting..";
+      }
     }
   }
 
@@ -364,6 +377,20 @@ public:
     }
   }
 
+  void resetRandomWeights()
+  {
+    for (list layer : layers)
+    {
+      for (Node *layerNode : layer)
+      {
+        for (Link *link : layerNode->nexts)
+        {
+          link->props->weight = random(-10, 10, 1);
+        }
+      }
+    }
+  }
+
   void adjustWeights(float learnRate, float momentumRate)
   {
     for (list layer : layers)
@@ -373,8 +400,8 @@ public:
         for (Link *link : layerNode->nexts)
         {
           // Batch learning : use the same formula as above but replace link->props->gradient with the total of all gradients
-          //link->props->weight_adjustment = (-1) * learnRate * link->props->gradient + momentumRate * link->props->weight_adjustment; // Online training
-          link->props->weight_adjustment =   (-1) * learnRate * link->props->gradientTotal  + momentumRate * link->props->weight_adjustment; //Batch training
+          // link->props->weight_adjustment = (-1) * learnRate * link->props->gradient + momentumRate * link->props->weight_adjustment; // Online training
+          link->props->weight_adjustment = (+1) * learnRate * (link->props->gradientTotal /4) + momentumRate * link->props->weight_adjustment; // Batch training
 
           link->props->weight = link->props->weight + link->props->weight_adjustment;
         }
@@ -384,6 +411,7 @@ public:
 
   void display()
   {
+
     for (list nodeList : layers)
     {
       cout << endl;
@@ -397,7 +425,10 @@ public:
         cout << "/";
         for (Link *link : node->nexts)
         {
-          link->props->weight = link->props->weight + 0.8;
+          cout << endl
+               << "Gradient total : " << link->props->gradientTotal << " Gradient : " << link->props->gradient << endl;
+          cout << endl
+               << link->node->data;
         }
       }
     }
@@ -419,14 +450,15 @@ public:
         {
 
           float error = layerNode->data - layerNode->ideal;
-          float delta = (-1) * error * layerNode->dfSum; // Online training
-          //float delta =  (-1) * _errorRate * layerNode->dfSum; // Batch training
-          layerNode->delta = delta;
+          float delta = (-1) * error * layerNode->dfSum; // Online training & Batch training
+          // float delta =  (-1) * _errorRate * layerNode->dfSum; // Batch training
+          layerNode->delta = delta;          
+
         }
 
         // skip calculations for BIAS and INPUT nodes
-        if (!(layerNode->nodeType == BIAS) && !(layerNode->nodeType == OUTPUT)) // NOTE:this makes errorRate go down (works with batch training)
-       //if (!(layerNode->nodeType == OUTPUT)) // NOTE:this makes errorRate go up NOTE:my learnRate was not multiplied with -1 (this covergance much better with online training)
+        // if (!(layerNode->nodeType == BIAS) && !(layerNode->nodeType == OUTPUT)) // NOTE:this makes errorRate go down (works with batch training)
+        if (!(layerNode->nodeType == OUTPUT)) // NOTE:this makes errorRate go up NOTE:my learnRate was not multiplied with -1 (this covergance much better with online training)
         {
           float sumOfWeight = 0;
           for (Link *link : layerNode->nexts)
@@ -436,12 +468,28 @@ public:
 
           for (Link *link : layerNode->nexts)
           {
-            layerNode->delta = layerNode->dfSum * sumOfWeight * link->node->delta;
+
+            float delta = layerNode->dfSum * sumOfWeight * link->node->delta;
+
+            layerNode->delta = delta;
 
             // online training
-            //link->props->gradient = layerNode->data * link->node->delta;
-
+            // link->props->gradient = layerNode->data * link->node->delta;
             // batch training | we use the total of the gradient
+
+            //--RPROP
+            float new_gradient = (layerNode->data * link->node->delta);
+            //SAME SIGN
+            if(new_gradient *link->props->gradient > 0)
+            {
+              //cout<<endl<<"~~~~~~~~~~~~~~~~~~~~~~~~~~";
+            }
+            else
+            {
+              //cout<<endl<<"!!!!!!!!!!!!!!!!!!!!!!!!!!!";
+            }
+
+
             link->props->gradient = (layerNode->data * link->node->delta);
             link->props->gradientTotal = link->props->gradientTotal + link->props->gradient;
           }
@@ -476,14 +524,14 @@ public:
           if (sum < 0)
           {
             layerNode->data = 0;
-             //layerNode->dfSum = 0;                     //https://datascience.stackexchange.com/questions/19272/deep-neural-network-backpropogation-with-relu
-            layerNode->dfSum = sigmoidDerivative(sum); // https://github.com/nandhakumarg52/ReLU-solves-XOR | Works the best
+            layerNode->dfSum = 0;                     //https://datascience.stackexchange.com/questions/19272/deep-neural-network-backpropogation-with-relu
+            //layerNode->dfSum = sigmoidDerivative(sum); // https://github.com/nandhakumarg52/ReLU-solves-XOR | Works the best
           }
           else
           {
             layerNode->data = sum;
-             //layerNode->dfSum = 1;
-            layerNode->dfSum = sigmoidDerivative(sum);
+            layerNode->dfSum = 1;
+            //layerNode->dfSum = sigmoidDerivative(sum);
           }*/
         }
       }
@@ -525,18 +573,17 @@ public:
     return sum / outputNodeCount;
   }
 
-  float random()
+  float random(int _from, int _to, int _divider)
   {
-      const int range_from = -100;
-      const int range_to = 100;
-      std::random_device rand_dev;
-      std::mt19937 generator(rand_dev());
-      std::uniform_int_distribution<int> distr(range_from, range_to);
-      float r = (float)distr(generator) / 10;
+    const int range_from = _from;
+    const int range_to = _to;
+    std::random_device rand_dev;
+    std::mt19937 generator(rand_dev());
+    std::uniform_int_distribution<int> distr(range_from, range_to);
+    float r = (float)distr(generator) / _divider;
 
-      return r;
+    return r;
   }
-
 };
 
 int main()
