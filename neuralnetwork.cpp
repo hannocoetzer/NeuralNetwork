@@ -471,24 +471,28 @@ public:
 
             float delta = layerNode->dfSum * sumOfWeight * link->node->delta;
 
-            layerNode->delta = delta;
 
             // online training
             // link->props->gradient = layerNode->data * link->node->delta;
             // batch training | we use the total of the gradient
 
             //--RPROP
-            float new_gradient = (layerNode->data * link->node->delta);
+            /*float new_gradient = (layerNode->data * delta);
             //SAME SIGN
             if(new_gradient *link->props->gradient > 0)
             {
+              //increase previosuly used delta
+              layerNode->delta = layerNode->delta * 1.1;
               //cout<<endl<<"~~~~~~~~~~~~~~~~~~~~~~~~~~";
             }
             else
             {
+              //decrease previosly used delta
+              layerNode->delta = layerNode->delta * 0.9;
               //cout<<endl<<"!!!!!!!!!!!!!!!!!!!!!!!!!!!";
-            }
+            }*/
 
+            layerNode->delta = delta;
 
             link->props->gradient = (layerNode->data * link->node->delta);
             link->props->gradientTotal = link->props->gradientTotal + link->props->gradient;
