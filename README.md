@@ -1,44 +1,95 @@
-# Windows C++ / CUDA Setup Guide
+# C++ and CUDA Development Setup Guide
 
-1. Install g++
-Download and install **MSYS2**:  
+This guide covers two separate installation paths: one for CPU-based C++ development using g++, and another for GPU-accelerated development using NVIDIA CUDA Toolkit.
+
+---
+
+## Installation 1: CPU Development with g++
+
+### Step 1: Install MSYS2
+
+Download and install **MSYS2** from:  
 https://www.msys2.org/
 
-After installation, install the MinGW toolchain and open msys2 terminal and run:
-pacman -S mingw-w64-x86_64-gcc
+### Step 2: Install MinGW Toolchain
 
-2. Install NVIDIA CUDA Toolkit
-Download and install CUDA:
-https://developer.nvidia.com/cuda/toolkit
+After MSYS2 installation completes, open the **MSYS2 terminal** and run:
 
-3. Install Visual C++ Build Tools
-Download:
-https://visualstudio.microsoft.com/visual-cpp-build-tools/
+```bash
+pacman -S --needed base-devel mingw-w64-x86_64-gcc
+```
 
-During installation, make sure to select:
+### Step 3: Add to PATH
 
-✅ Desktop development with C++
+Add the following directory to your system PATH environment variable:
 
-✅ MSVC v143 (or latest)
-
-✅ Windows 10 SDK
-
-You do NOT need the full Visual Studio IDE.
-
-4. Add PATH Environment Variables
-Add the following to your system PATH:
-
-
+```
 C:\msys64\mingw64\bin
-C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.x\bin
+```
 
-5. Running Code
-CUDA (GPU)
-Open x64 Native Tools Command Prompt for VS 2022
-nvcc cuda.cu -o cuda.exe
-./cuda.exe
+### Step 4: Compile and Run
 
-CPU (g++)
+Open any terminal and use g++ to compile your code:
 
+```bash
 g++ neuralnetwork.cpp -o neuralnetwork.exe
 ./neuralnetwork.exe
+```
+
+---
+
+## Installation 2: GPU Development with CUDA Toolkit
+
+### Step 1: Install NVIDIA CUDA Toolkit
+
+Download and install CUDA from:  
+https://developer.nvidia.com/cuda-toolkit
+
+### Step 2: Install Visual C++ Build Tools
+
+Download Visual C++ Build Tools from:  
+https://visualstudio.microsoft.com/visual-cpp-build-tools/
+
+During installation, select the following components:
+
+- ✅ Desktop development with C++
+- ✅ MSVC v143 (or latest version)
+- ✅ Windows 10 SDK
+
+**Note:** You do NOT need the full Visual Studio IDE.
+
+### Step 3: Add CUDA to PATH
+
+Add the following directory to your system PATH environment variable (adjust version number as needed):
+
+```
+C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.x\bin
+```
+
+### Step 4: Compile and Run
+
+Open **x64 Native Tools Command Prompt for VS 2022** and use nvcc to compile:
+
+```bash
+nvcc cuda.cu -o cuda.exe
+./cuda.exe
+```
+
+---
+
+## Quick Reference
+
+| Development Type | Compiler | Command Prompt | Compile Command |
+|-----------------|----------|----------------|-----------------|
+| CPU (C++) | g++ | Any terminal | `g++ source.cpp -o output.exe` |
+| GPU (CUDA) | nvcc | x64 Native Tools | `nvcc source.cu -o output.exe` |
+
+---
+
+## Additional Resources
+
+**CUDA Learning:**
+- [An Even Easier Introduction to CUDA](https://developer.nvidia.com/blog/even-easier-introduction-cuda/) - NVIDIA Developer Blog
+
+**Recommended Tutorial:**
+- Jeff Heaton's CUDA tutorials and examples
