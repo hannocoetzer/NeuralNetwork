@@ -397,6 +397,7 @@ public:
     {
       for (Node *layerNode : layer)
       {
+        // NOTE: CUDA KERNEL
         for (Link *link : layerNode->nexts)
         {
           // Batch learning : use the same formula as above but replace link->props->gradient with the total of all gradients
@@ -460,37 +461,17 @@ public:
         // if (!(layerNode->nodeType == BIAS) && !(layerNode->nodeType == OUTPUT)) // NOTE:this makes errorRate go down (works with batch training)
         if (!(layerNode->nodeType == OUTPUT)) // NOTE:this makes errorRate go up NOTE:my learnRate was not multiplied with -1 (this covergance much better with online training)
         {
+          // NOTE: CUDA KERNEL
           float sumOfWeight = 0;
           for (Link *link : layerNode->nexts)
           {
             sumOfWeight = sumOfWeight + link->props->weight;
           }
 
+          // NOTE: CUDA KERNEL
           for (Link *link : layerNode->nexts)
           {
-
             float delta = layerNode->dfSum * sumOfWeight * link->node->delta;
-
-
-            // online training
-            // link->props->gradient = layerNode->data * link->node->delta;
-            // batch training | we use the total of the gradient
-
-            //--RPROP
-            /*float new_gradient = (layerNode->data * delta);
-            //SAME SIGN
-            if(new_gradient *link->props->gradient > 0)
-            {
-              //increase previosuly used delta
-              layerNode->delta = layerNode->delta * 1.1;
-              //cout<<endl<<"~~~~~~~~~~~~~~~~~~~~~~~~~~";
-            }
-            else
-            {
-              //decrease previosly used delta
-              layerNode->delta = layerNode->delta * 0.9;
-              //cout<<endl<<"!!!!!!!!!!!!!!!!!!!!!!!!!!!";
-            }*/
 
             layerNode->delta = delta;
 
@@ -512,6 +493,7 @@ public:
       {
         for (Node *layerNode : layer)
         {
+          // NOTE:CUDA KERNEL
           float sum = 0;
           for (Link *link : layerNode->prevs)
           {
@@ -523,20 +505,6 @@ public:
           layerNode->data = sigmoid(sum);            // Activation function
           layerNode->dfSum = sigmoidDerivative(sum); // Derivative of activation function, used for backPropagation calculations
 
-          //--ReLU activation function
-          /*float ReLU = 0;
-          if (sum < 0)
-          {
-            layerNode->data = 0;
-            layerNode->dfSum = 0;                     //https://datascience.stackexchange.com/questions/19272/deep-neural-network-backpropogation-with-relu
-            //layerNode->dfSum = sigmoidDerivative(sum); // https://github.com/nandhakumarg52/ReLU-solves-XOR | Works the best
-          }
-          else
-          {
-            layerNode->data = sum;
-            layerNode->dfSum = 1;
-            //layerNode->dfSum = sigmoidDerivative(sum);
-          }*/
         }
       }
       layerLevel++;
@@ -545,18 +513,12 @@ public:
 
   float sigmoid(float x)
   {
-    // faster as mentioned here
-    // https://stackoverflow.com/questions/10732027/fast-sigmoid-algorithm
-    // f=1/(1+e^(-x))
     const float e = 2.71828;
     return 1 / (1 + pow(e, x));
   }
 
   float sigmoidDerivative(float x)
   {
-    // https://stackoverflow.com/questions/10626134/derivative-of-sigmoid
-    // f = 1/(1+exp(-x))
-    // df = f * (1 - f)
     return sigmoid(x) * (1 - sigmoid(x));
   }
 

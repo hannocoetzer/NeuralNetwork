@@ -10,11 +10,6 @@ __global__ void add(float *a, float *b, float *c, int size) {
 }
 
 int main() {
-    cuda();
-    return 0;
-}
-
-void cuda() {
     int size = 100; // Size of the arrays
     float *a, *b, *c; // Host arrays
     float *g_a, *g_b, *g_c; // Device arrays
