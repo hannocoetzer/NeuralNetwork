@@ -1,44 +1,71 @@
 #include <iostream>
-#include <math.h>
- 
-// Kernel function to add the elements of two arrays
-__global__
-void add(int n, float *x, float *y)
-{
- for (int i = 0; i < n; i++)
-   y[i] = x[i] + y[i];
+#include <vector>
+
+// CUDA kernel to add two arrays
+__global__ void add(int *a, int *b, int *sum, int *mul, int size) {
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    if (tid < size) {
+        sum[tid] = a[tid] + b[tid];
+        mul[tid] = a[tid] * b[tid];
+    }
 }
- 
-int main(void)
-{
- int N = 1<<20;
- float *x, *y;
- 
- // Allocate Unified Memory – accessible from CPU or GPU
- cudaMallocManaged(&x, N*sizeof(float));
- cudaMallocManaged(&y, N*sizeof(float));
- 
- // initialize x and y arrays on the host
- for (int i = 0; i < N; i++) {
-   x[i] = 1.0f;
-   y[i] = 2.0f;
- }
- 
- // Run kernel on 1M elements on the GPU
- add<<<1, 1>>>(N, x, y);
- 
- // Wait for GPU to finish before accessing on host
- cudaDeviceSynchronize();
- 
- // Check for errors (all values should be 3.0f)
- float maxError = 0.0f;
- for (int i = 0; i < N; i++) {
-   maxError = fmax(maxError, fabs(y[i]-3.0f));
- }
- std::cout << "Max error: " << maxError << std::endl;
- 
- // Free memory
- cudaFree(x);
- cudaFree(y);
-  return 0;
+
+int main() {
+    int size = 100; // Size of the arrays
+    int *a, *b, *sum, *mul; // Host arrays
+    int *g_a, *g_b, *g_sum, *g_mul; // Device arrays
+
+    // Allocate memory on host
+    a = (int *)malloc(size * sizeof(int));
+    b = (int *)malloc(size * sizeof(int));
+    sum = (int *)malloc(size * sizeof(int));
+    mul = (int *)malloc(size * sizeof(int));
+
+
+    // Initialize host arrays
+    for (int i = 0; i < size; i++) {
+        a[i] = i;
+        b[i] = i * 2;
+    }
+
+    // Allocate memory on device
+    cudaMalloc((void **)&g_a, size * sizeof(int));
+    cudaMalloc((void **)&g_b, size * sizeof(int));
+    cudaMalloc((void **)&g_sum, size * sizeof(int));
+    cudaMalloc((void **)&g_mul, size * sizeof(int));
+
+    // Copy data from host to device
+    cudaMemcpy(g_a, a, size * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(g_b, b, size * sizeof(int), cudaMemcpyHostToDevice);
+
+    // Define kernel launch parameters
+    int blockSize = 256;
+    int numBlocks = (size + blockSize - 1) / blockSize;
+
+    // Launch the kernel
+    add<<<numBlocks, blockSize>>>(g_a, g_b, g_sum,g_mul, size);
+
+    // Copy result from device to host
+    cudaMemcpy(sum, g_sum, size * sizeof(int), cudaMemcpyDeviceToHost);
+    cudaMemcpy(mul, g_mul, size * sizeof(int), cudaMemcpyDeviceToHost);
+
+    // Print a few results to verify
+    std::cout << "Vector Addition/Multiplication Result (first 10 elements):" << std::endl;
+    for (int i = 0; i < 10; i++) {
+        std::cout << a[i] << " + " << b[i] << " = " << sum[i] << std::endl;
+        std::cout << a[i] << " * " << b[i] << " = " << mul[i] << std::endl;
+    }
+
+    // Free device memory
+    cudaFree(g_a);
+    cudaFree(g_b);
+    cudaFree(g_sum);
+    cudaFree(g_mul);
+
+    // Free host memory
+    free(a);
+    free(b);
+    free(sum);
+    free(mul);
+
 }
