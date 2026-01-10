@@ -3,5 +3,11 @@
     "ostream": "cpp",
     "xutility": "cpp",
     "list": "cpp"
+  },
+"vscode-neovim.neovimKeybindingsNonRecursive": [
+  {
+    "before": ["<C-`>"],
+    "commands": ["workbench.action.terminal.toggleTerminal"]
   }
+]
 }
