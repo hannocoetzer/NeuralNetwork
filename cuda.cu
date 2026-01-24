@@ -1,71 +1,70 @@
 #include <iostream>
 #include <vector>
 
-// CUDA kernel to add two arrays
-__global__ void add(int *a, int *b, int *sum, int *mul, int size) {
-    int tid = blockIdx.x * blockDim.x + threadIdx.x;
-    if (tid < size) {
-        sum[tid] = a[tid] + b[tid];
-        mul[tid] = a[tid] * b[tid];
+// Struct containing 2 float variables
+struct Node {
+    float x;
+    float y;
+};
+
+// CUDA kernel for element-wise vector multiplication
+__global__ void vectorMultiply(Node* a, Node* b, Node* result, int n) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    
+    if (idx < n) {
+        result[idx].x = a[idx].x * b[idx].x;
+        result[idx].y = a[idx].y * b[idx].y;
     }
 }
 
 int main() {
-    int size = 100; // Size of the arrays
-    int *a, *b, *sum, *mul; // Host arrays
-    int *g_a, *g_b, *g_sum, *g_mul; // Device arrays
-
-    // Allocate memory on host
-    a = (int *)malloc(size * sizeof(int));
-    b = (int *)malloc(size * sizeof(int));
-    sum = (int *)malloc(size * sizeof(int));
-    mul = (int *)malloc(size * sizeof(int));
-
-
-    // Initialize host arrays
-    for (int i = 0; i < size; i++) {
-        a[i] = i;
-        b[i] = i * 2;
+    const int N = 1024;
+    const int size = N * sizeof(Node);
+    
+    // Allocate host memory
+    Node* h_a = (Node*)malloc(size);
+    Node* h_b = (Node*)malloc(size);
+    Node* h_result = (Node*)malloc(size);
+    
+    // Initialize input arrays
+    for (int i = 0; i < N; i++) {
+        h_a[i].x = i * 1.0f;
+        h_a[i].y = i * 2.0f;
+        h_b[i].x = 2.0f;
+        h_b[i].y = 3.0f;
     }
-
-    // Allocate memory on device
-    cudaMalloc((void **)&g_a, size * sizeof(int));
-    cudaMalloc((void **)&g_b, size * sizeof(int));
-    cudaMalloc((void **)&g_sum, size * sizeof(int));
-    cudaMalloc((void **)&g_mul, size * sizeof(int));
-
-    // Copy data from host to device
-    cudaMemcpy(g_a, a, size * sizeof(int), cudaMemcpyHostToDevice);
-    cudaMemcpy(g_b, b, size * sizeof(int), cudaMemcpyHostToDevice);
-
-    // Define kernel launch parameters
-    int blockSize = 256;
-    int numBlocks = (size + blockSize - 1) / blockSize;
-
-    // Launch the kernel
-    add<<<numBlocks, blockSize>>>(g_a, g_b, g_sum,g_mul, size);
-
-    // Copy result from device to host
-    cudaMemcpy(sum, g_sum, size * sizeof(int), cudaMemcpyDeviceToHost);
-    cudaMemcpy(mul, g_mul, size * sizeof(int), cudaMemcpyDeviceToHost);
-
-    // Print a few results to verify
-    std::cout << "Vector Addition/Multiplication Result (first 10 elements):" << std::endl;
-    for (int i = 0; i < 10; i++) {
-        std::cout << a[i] << " + " << b[i] << " = " << sum[i] << std::endl;
-        std::cout << a[i] << " * " << b[i] << " = " << mul[i] << std::endl;
+    
+    // Allocate device memory
+    Node *d_a, *d_b, *d_result;
+    cudaMalloc(&d_a, size);
+    cudaMalloc(&d_b, size);
+    cudaMalloc(&d_result, size);
+    
+    // Copy data to device
+    cudaMemcpy(d_a, h_a, size, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_b, h_b, size, cudaMemcpyHostToDevice);
+    
+    // Launch kernel
+    int threadsPerBlock = 256;
+    int blocksPerGrid = (N + threadsPerBlock - 1) / threadsPerBlock;
+    vectorMultiply<<<blocksPerGrid, threadsPerBlock>>>(d_a, d_b, d_result, N);
+    
+    // Copy result back to host
+    cudaMemcpy(h_result, d_result, size, cudaMemcpyDeviceToHost);
+    
+    // Print first 5 results
+    printf("First 5 results:\n");
+    for (int i = 0; i < 5; i++) {
+        printf("result[%d] = (%.2f, %.2f)\n", i, h_result[i].x, h_result[i].y);
     }
-
-    // Free device memory
-    cudaFree(g_a);
-    cudaFree(g_b);
-    cudaFree(g_sum);
-    cudaFree(g_mul);
-
-    // Free host memory
-    free(a);
-    free(b);
-    free(sum);
-    free(mul);
-
+    
+    // Free memory
+    cudaFree(d_a);
+    cudaFree(d_b);
+    cudaFree(d_result);
+    free(h_a);
+    free(h_b);
+    free(h_result);
+    
+    return 0;
 }
