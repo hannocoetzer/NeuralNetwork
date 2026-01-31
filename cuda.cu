@@ -121,19 +121,21 @@ class layer{
         }
         void c_to_g(){
             if(layer_Type == LINK){
+                printf("\nL_c_to_g");
                 cudaMemcpy(g_link_arr, c_link_arr, sizeof(link)*size, cudaMemcpyHostToDevice);
             }
             if(layer_Type == NORMAL){
-                printf("cudaMemcpy");
+                printf("\nN_c_to_g");
                 cudaMemcpy(g_node_arr, c_node_arr, sizeof(node)*size + sizeof(node)*bias_Count, cudaMemcpyHostToDevice);
             }
         }
         void g_to_c(){
             if(layer_Type == LINK){
+                printf("\nL_g_to_c");
                 cudaMemcpy(c_link_arr, g_link_arr, sizeof(link)*size, cudaMemcpyDeviceToHost);
             }
             if(layer_Type == NORMAL){
-                printf("g_to_c()");
+                printf("\nN_g_to_c");
                 cudaMemcpy(c_node_arr, g_node_arr, sizeof(node)*size  + sizeof(node)*bias_Count, cudaMemcpyDeviceToHost);
             }
         }
@@ -210,7 +212,7 @@ __global__ void forwardProp(node* a, link* b, node* result, int sizeA, int numSu
         float product = b[idxB].weight * a[idxA].data;
         result[idx].data = product;
         result[idx].sum = product;
-        atomicAdd(&result[idx].sum, product);
+        //atomicAdd(&result[idx].sum, product);
     }
 
     // //grid sync !!! when not enabled return 0, else return values
@@ -293,6 +295,10 @@ int main() {
     w1->init();
     w1->g_malloc();
 
+    i1->c_to_g();
+    h1->c_to_g();
+    w1->c_to_g();
+
     i1->print(data);
     w1->print(weight);
     h1->print(data);
@@ -302,14 +308,19 @@ int main() {
     int blocksPerGrid = (opSize + threadsPerBlock - 1) / threadsPerBlock;
 
     printf("\n\nopSize : %i", opSize);
+    printf("\n\nblocksPerGrid : %i", blocksPerGrid);
     printf("\ni1->size + i1->bias_Count : %i", i1->size + i1->bias_Count);
     printf("\nw1->size : %i", w1->size);
     printf("\nnumOfubsets : %i\n\n", w1->size / (i1->size + i1->bias_Count));
     forwardProp<<<blocksPerGrid, threadsPerBlock>>>(i1->g_node_arr, w1->g_link_arr, h1->g_node_arr, i1->size + i1->bias_Count, w1->size / (i1->size + i1->bias_Count));
     cudaDeviceSynchronize();
     
+    i1->g_to_c();
     h1->g_to_c();
+    w1->g_to_c();
+
     i1->print(data);
+    w1->print(weight);
     h1->print(data);
 
     i1->del();
