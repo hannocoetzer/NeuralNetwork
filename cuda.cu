@@ -119,24 +119,24 @@ class layer{
                 cudaMalloc(&g_node_arr,sizeof(node)*size + sizeof(node)*bias_Count);
             }
         }
-        void c_to_g(){
+        void c_to_g(bool copyWithBias){
             if(layer_Type == LINK){
                 printf("\nL_c_to_g");
                 cudaMemcpy(g_link_arr, c_link_arr, sizeof(link)*size, cudaMemcpyHostToDevice);
             }
             if(layer_Type == NORMAL){
                 printf("\nN_c_to_g");
-                cudaMemcpy(g_node_arr, c_node_arr, sizeof(node)*size + sizeof(node)*bias_Count, cudaMemcpyHostToDevice);
+                cudaMemcpy(g_node_arr, c_node_arr, sizeof(node)*size + copyWithBias ? sizeof(node)*bias_Count : 0, cudaMemcpyHostToDevice);
             }
         }
-        void g_to_c(){
+        void g_to_c(bool copyWithBias){
             if(layer_Type == LINK){
                 printf("\nL_g_to_c");
                 cudaMemcpy(c_link_arr, g_link_arr, sizeof(link)*size, cudaMemcpyDeviceToHost);
             }
             if(layer_Type == NORMAL){
                 printf("\nN_g_to_c");
-                cudaMemcpy(c_node_arr, g_node_arr, sizeof(node)*size  + sizeof(node)*bias_Count, cudaMemcpyDeviceToHost);
+                cudaMemcpy(c_node_arr, g_node_arr, sizeof(node)*size  + copyWithBias ? sizeof(node)*bias_Count : 0, cudaMemcpyDeviceToHost);
             }
         }
         void del(){
@@ -295,9 +295,9 @@ int main() {
     w1->init();
     w1->g_malloc();
 
-    i1->c_to_g();
-    h1->c_to_g();
-    w1->c_to_g();
+    i1->c_to_g(true);
+    h1->c_to_g(false);
+    w1->c_to_g(false);
 
     i1->print(data);
     w1->print(weight);
@@ -315,9 +315,9 @@ int main() {
     forwardProp<<<blocksPerGrid, threadsPerBlock>>>(i1->g_node_arr, w1->g_link_arr, h1->g_node_arr, i1->size + i1->bias_Count, w1->size / (i1->size + i1->bias_Count));
     cudaDeviceSynchronize();
     
-    i1->g_to_c();
-    h1->g_to_c();
-    w1->g_to_c();
+    //i1->g_to_c();
+    h1->g_to_c(false);
+    //w1->g_to_c();
 
     i1->print(data);
     w1->print(weight);
