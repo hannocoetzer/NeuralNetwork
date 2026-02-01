@@ -126,7 +126,9 @@ class layer{
             }
             if(layer_Type == NORMAL){
                 printf("\nN_c_to_g");
-                cudaMemcpy(g_node_arr, c_node_arr, sizeof(node)*size + copyWithBias ? sizeof(node)*bias_Count : 0, cudaMemcpyHostToDevice);
+                // faulty for some reason
+                //cudaMemcpy(g_node_arr, c_node_arr, sizeof(node)*size + copyWithBias ? sizeof(node)*bias_Count : 0, cudaMemcpyHostToDevice);
+                cudaMemcpy(g_node_arr, c_node_arr, sizeof(node)*size + sizeof(node)*bias_Count, cudaMemcpyHostToDevice);
             }
         }
         void g_to_c(bool copyWithBias){
@@ -136,7 +138,9 @@ class layer{
             }
             if(layer_Type == NORMAL){
                 printf("\nN_g_to_c");
-                cudaMemcpy(c_node_arr, g_node_arr, sizeof(node)*size  + copyWithBias ? sizeof(node)*bias_Count : 0, cudaMemcpyDeviceToHost);
+                // faulty for some reason
+                //cudaMemcpy(c_node_arr, g_node_arr, sizeof(node)*size  + copyWithBias ? sizeof(node)*bias_Count : 0, cudaMemcpyDeviceToHost);
+                cudaMemcpy(c_node_arr, g_node_arr, sizeof(node)*size  + sizeof(node)*bias_Count, cudaMemcpyDeviceToHost);
             }
         }
         void del(){
@@ -186,12 +190,12 @@ __device__ float sigmoidDerivative(float x)
 
 __global__ void forwardProp(node* a, link* b, node* result, int sizeA, int numSubsets) {
 
-    // a [1,2,3]
-    // b [3,4,5,6,7,8]
+    // ex. a [1,2,3]
+    // ex. b [3,4,5,6,7,8]
+    // ex. result [(3 * 1) + (4 * 2) + (4 * 3), (3 * 1) + (4 * 2) + (4 * 3)]
     
     //lock grid or something
-
-    cg::grid_group grid = cg::this_grid();
+    //cg::grid_group grid = cg::this_grid();
     
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -204,77 +208,40 @@ __global__ void forwardProp(node* a, link* b, node* result, int sizeA, int numSu
         int idxA = idx % sizeA;         // 6 Ops => idx shouldn't go greater than > 3        
         int subsetIdx = idx / sizeA;    // 6 Ops is split into 2 parts = 6 ops / 3 size = 2 threads to multiply
 
+        printf("\nidxA : %i",idxA);
+        printf("\nsubsetIdx : %i",subsetIdx);
+
         // you could almost see this as another thread - maybe even if(subsetIdx < totalOps / sizeA) or if(subsetIdx < subSetSize)
         int idxB = subsetIdx *          // subsetIdx will not go past 2
                         subSetSize      // just to give it a size or something
                             + idxA;     // idxA is the incrementor and will not go past 3 - can be seen as (for idxA = 0; idx % sizeA ; idxA ++)
 
+        printf("\nidxB : %i",idxB);
+        printf("\nb[idxB].weight : %0.2f",b[idxB].weight);
+        printf("\na[idxA].data : %0.2f",a[idxA].data);
+
         float product = b[idxB].weight * a[idxA].data;
-        result[idx].data = product;
-        result[idx].sum = product;
-        //atomicAdd(&result[idx].sum, product);
+        printf("\nproduct : %0.2f",product);
+        atomicAdd(&result[subsetIdx].sum, product); //important [subsetIdx] NOT [idx] - because we want to get the subset total
     }
 
-    // //grid sync !!! when not enabled return 0, else return values
-    grid.sync();
+    // grid sync !!! when not enabled return 0, else return values
+    //grid.sync();
 
-    // //we just want to do a quick activation sigmoid calculation
-    // if(idx < numSubsets)
-    // {
-    //     result[idx].data = result[idx].data * 1.2;
-    //     //result[idx].data = sigmoid(result[idx].sum);
-    //     //result[idx].dfSum = sigmoidDerivative(result[idx].sum);
-    // }
+    //we just want to do a quick activation sigmoid calculation
+    if(idx < numSubsets)
+    {
+        printf("\nidx : %i",idx);
+        printf("\nresult[idx].sum: %0.2f",result[idx].sum);
+        result[idx].data = result[idx].sum;
+        //result[idx].data = sigmoid(result[idx].sum);
+        //result[idx].dfSum = sigmoidDerivative(result[idx].sum);
+    }
 }
 
 int main() {
-    // const int N = 1024;
-    // const int size = N * sizeof(node);
-    
-    // // Allocate host memory
-    // node* h_a = (node*)malloc(size);
-    // node* h_b = (node*)malloc(size);
-    // node* h_result = (node*)malloc(size);
-    
-    // // Initialize input arrays
-    // for (int i = 0; i < N; i++) {
-    //     h_a[i].data = i * 1.0f;
-    //     h_a[i].ideal = i * 2.0f;
-    //     h_b[i].data = 2.0f;
-    //     h_b[i].ideal = 3.0f;
-    // }
-    
-    // // Allocate device memory
-    // node *d_a, *d_b, *d_result;
-    // cudaMalloc(&d_a, size);
-    // cudaMalloc(&d_b, size);
-    // cudaMalloc(&d_result, size);
-    
-    // // Copy data to device
-    // cudaMemcpy(d_a, h_a, size, cudaMemcpyHostToDevice);
-    // cudaMemcpy(d_b, h_b, size, cudaMemcpyHostToDevice);
-    
-    // // Launch kernel
-    // int threadsPerBlock = 256;
-    // int blocksPerGrid = (N + threadsPerBlock - 1) / threadsPerBlock;
-    // vectorMultiply<<<blocksPerGrid, threadsPerBlock>>>(d_a, d_b, d_result, N);
-    
-    // // Copy result back to host
-    // cudaMemcpy(h_result, d_result, size, cudaMemcpyDeviceToHost);
-    
-    // // Print first 5 results
-    // printf("First 5 results:\n");
-    // for (int i = 0; i < 5; i++) {
-    //     printf("result[%d] = (%.2f, %.2f)\n", i, h_result[i].data, h_result[i].ideal);
-    // }
-    
-    // // Free memory
-    // cudaFree(d_a);
-    // cudaFree(d_b);
-    // cudaFree(d_result);
-    // free(h_a);
-    // free(h_b);
-    // free(h_result);
+
+    cudaDeviceReset();
 
     layer* i1 = new layer(2,1,NORMAL);
     i1->c_malloc();
@@ -312,12 +279,12 @@ int main() {
     printf("\ni1->size + i1->bias_Count : %i", i1->size + i1->bias_Count);
     printf("\nw1->size : %i", w1->size);
     printf("\nnumOfubsets : %i\n\n", w1->size / (i1->size + i1->bias_Count));
-    forwardProp<<<blocksPerGrid, threadsPerBlock>>>(i1->g_node_arr, w1->g_link_arr, h1->g_node_arr, i1->size + i1->bias_Count, w1->size / (i1->size + i1->bias_Count));
+    int numOfSubsets = w1->size / (i1->size + i1->bias_Count);
+    int size = i1->size + i1->bias_Count;
+    forwardProp<<<blocksPerGrid, threadsPerBlock>>>(i1->g_node_arr, w1->g_link_arr, h1->g_node_arr, size, numOfSubsets);
     cudaDeviceSynchronize();
     
-    //i1->g_to_c();
     h1->g_to_c(false);
-    //w1->g_to_c();
 
     i1->print(data);
     w1->print(weight);
@@ -326,35 +293,6 @@ int main() {
     i1->del();
     h1->del();
     w1->del();
-    
-
-    // layer* o = new layer(1,0,NORMAL);
-    // o->c_malloc();
-    // o->g_malloc();
-
-    // i1->c_to_g();
-    // h1->c_to_g();
-
-
-    /*int threadsPerBlock = 256;
-    int blocksPerGrid = (N + threadsPerBlock - 1) / threadsPerBlock;
-    // -- Output saved to new node* array
-    // vectorMultiply<<<blocksPerGrid, threadsPerBlock>>>(i1->g_node_arr, h1->g_node_arr, o->g_node_arr, N);
-    // o->g_to_c();
-    // i1->print();
-    // h1->print();
-    // o->print();
-
-    // -- Output overwrite current node* array
-    vectorMultiply<<<blocksPerGrid, threadsPerBlock>>>(i1->g_node_arr, h1->g_node_arr, h1->g_node_arr, N);
-    i2->g_to_c();
-    i1->print();
-    i2->print();
-
-    //clean up
-    i1->del();
-    i2->del();
-    o->del();*/
     
     return 0;
 }

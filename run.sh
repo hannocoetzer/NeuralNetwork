@@ -5,7 +5,7 @@ nvcc cuda.cu -o cuda
 
 if [ $? -eq 0 ]; then
     echo "compilation successful. running ./cuda..."
-    ./cuda
+    ./cuda.exe
 else
     echo "compilation failed."
 fi
