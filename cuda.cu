@@ -16,12 +16,13 @@ enum layerType{
     LINK
 };
 
-// Struct containing 2 float variables
 struct node {
     float data;
     float ideal;
     float sum;
     float dfSum;
+    float delta;
+    float sumOfWeights;
 };
 
 struct link{
@@ -237,6 +238,45 @@ __global__ void forwardProp(node* a, link* b, node* result, int sizeA, int numSu
         //result[idx].data = sigmoid(result[idx].sum);
         //result[idx].dfSum = sigmoidDerivative(result[idx].sum);
     }
+}
+
+__global__ void backwardProp(node* i, link* w, node* o, node* result, int sizeI, int sizeO, int numSubsets) {
+
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+    //calculate error and delta
+    if(idx < sizeO){
+        o[idx].delta = (-1) * (o[idx].data - o[idx].ideal) * o[idx].dfSum;
+    }
+
+    //calculate sumOfWeights
+    if(idx < sizeI ){
+
+        float valI = i[idx].sumOfWeights;
+
+        int idxI = idx;
+        int idxW = idx + sizeI;
+
+        if(idxI < sizeI * sizeO && idxW < sizeI * sizeO){
+            float sumOfWeights = i[idxI].sumOfWeights + w[idxW].weight;
+            atomicAdd(&i[idx].sumOfWeights, sumOfWeights);
+        }
+    }
+
+    // link->node->delta = layerNode->dfSum * sumOfWeight * link->node->delta;
+    // link->props->gradient = (layerNode->data * link->node->delta);
+    // link->props->gradientTotal = link->props->gradientTotal + link->props->gradient;
+    //calculate gradient
+    if(idx < sizeI * sizeO){
+        int idxI = idx%sizeI;
+        int idxO = idx%sizeO;
+        int idxW = idxI + sizeI;
+
+        o[idxO].delta = i[idxI].dfSum * i[idxI].sumOfWeights * o[idxO].delta;
+        w[idx].gradient = i[idxI].data * o[idxO].delta;
+        w[idx].gradient_total = w[idx].gradient_total + w[idx].gradient;
+    }   
+
 }
 
 int main() {
