@@ -76,14 +76,18 @@ class layer{
 
                 if(layer_Type == NORMAL)
                 {
-                    c_node_arr[i].data = (i + 2) * 1.0f;
+                    c_node_arr[i].data = (i) + (1) * 2.0f;
+                    c_node_arr[i].ideal = (i) + (1) * 3.0f;
                     c_node_arr[i].sum = 0;
-                    //c_node_arr[i].ideal = (i + 3) * 2.0f;
+                    c_node_arr[i].dfSum = (i) + (1) * 4.0f;
+                    c_node_arr[i].delta = (i) + (1) * 5.0f;
+                    c_node_arr[i].sumOfWeights = 0;
                 }
                 if(layer_Type == LINK)
                 {
-                    c_link_arr[i].weight = (i + 2) * 1.0f;
-                    //c_link_arr[i].weight_adjustment = (i + 3) * 2.0f;
+                    c_link_arr[i].weight = (i) + (1) * 6.0f;
+                    c_link_arr[i].gradient = (i) + (1) * 7.0f;
+                    c_link_arr[i].gradient_total = 0;
                 }
             }
 
@@ -240,42 +244,41 @@ __global__ void forwardProp(node* a, link* b, node* result, int sizeA, int numSu
     }
 }
 
-__global__ void backwardProp(node* i, link* w, node* o, node* result, int sizeI, int sizeO, int numSubsets) {
+__global__ void backwardProp(node* i, link* w, node* o, int sizeI, int sizeO) {
 
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
-    //calculate error and delta
+    //calculate error and delta - 80% probability this is correct
     if(idx < sizeO){
         o[idx].delta = (-1) * (o[idx].data - o[idx].ideal) * o[idx].dfSum;
+        printf("\n(-1) * (o[idx].data - o[idx].ideal) * o[idx].dfSum : %0.2f",o[idx].delta);
     }
 
-    //calculate sumOfWeights
-    if(idx < sizeI ){
-
-        float valI = i[idx].sumOfWeights;
-
-        int idxI = idx;
-        int idxW = idx + sizeI;
-
-        if(idxI < sizeI * sizeO && idxW < sizeI * sizeO){
-            float sumOfWeights = i[idxI].sumOfWeights + w[idxW].weight;
-            atomicAdd(&i[idx].sumOfWeights, sumOfWeights);
-        }
+    //calculate sumOfWeights - 80% this is correct
+    if(idx < sizeI * sizeO ){
+        int idxI = idx % sizeI;
+        atomicAdd(&i[idxI].sumOfWeights, w[idx].weight);
+        printf("\nSum Of Weights : %0.2f",i[idxI].sumOfWeights);
     }
 
     // link->node->delta = layerNode->dfSum * sumOfWeight * link->node->delta;
     // link->props->gradient = (layerNode->data * link->node->delta);
     // link->props->gradientTotal = link->props->gradientTotal + link->props->gradient;
     //calculate gradient
-    if(idx < sizeI * sizeO){
-        int idxI = idx%sizeI;
-        int idxO = idx%sizeO;
-        int idxW = idxI + sizeI;
+    if (idx < sizeI * sizeO) {
+        int i_idx = idx % sizeI; //cycles through I: 0,1,2,0,1,2
+        int o_idx = (idx / sizeI) % sizeO; //6 / 3 = 2 => changes every I_size elements: 0,0,0,1,1,1
 
-        o[idxO].delta = i[idxI].dfSum * i[idxI].sumOfWeights * o[idxO].delta;
-        w[idx].gradient = i[idxI].data * o[idxO].delta;
-        w[idx].gradient_total = w[idx].gradient_total + w[idx].gradient;
-    }   
+        o[o_idx].delta = i[i_idx].dfSum * i[i_idx].sumOfWeights * o[o_idx].delta;
+        w[idx].gradient = i[i_idx].data * o[o_idx].delta;
+
+        printf("\no[o_idx].delta : %0.2f",o[o_idx].delta);
+        printf("\nw[idx].gradient : %0.2f",w[idx].gradient);
+        
+        //calculate gradient_total for each idx
+
+        
+    }
 
 }
 
@@ -314,14 +317,19 @@ int main() {
     int opSize = w1->size;
     int blocksPerGrid = (opSize + threadsPerBlock - 1) / threadsPerBlock;
 
-    printf("\n\nopSize : %i", opSize);
-    printf("\n\nblocksPerGrid : %i", blocksPerGrid);
-    printf("\ni1->size + i1->bias_Count : %i", i1->size + i1->bias_Count);
-    printf("\nw1->size : %i", w1->size);
-    printf("\nnumOfubsets : %i\n\n", w1->size / (i1->size + i1->bias_Count));
-    int numOfSubsets = w1->size / (i1->size + i1->bias_Count);
-    int size = i1->size + i1->bias_Count;
-    forwardProp<<<blocksPerGrid, threadsPerBlock>>>(i1->g_node_arr, w1->g_link_arr, h1->g_node_arr, size, numOfSubsets);
+    // printf("\n\nopSize : %i", opSize);
+    // printf("\n\nblocksPerGrid : %i", blocksPerGrid);
+    // printf("\ni1->size + i1->bias_Count : %i", i1->size + i1->bias_Count);
+    // printf("\nw1->size : %i", w1->size);
+    // printf("\nnumOfubsets : %i\n\n", w1->size / (i1->size + i1->bias_Count));
+
+    // int numOfSubsets = w1->size / (i1->size + i1->bias_Count);
+    // int size = i1->size + i1->bias_Count;
+    // forwardProp<<<blocksPerGrid, threadsPerBlock>>>(i1->g_node_arr, w1->g_link_arr, h1->g_node_arr, size, numOfSubsets);
+    // cudaDeviceSynchronize();
+
+    //int size = i1->size + i1->bias_Count;
+    backwardProp<<<blocksPerGrid, threadsPerBlock>>>(i1->g_node_arr, w1->g_link_arr, h1->g_node_arr, i1->size + 1, h1->size);
     cudaDeviceSynchronize();
     
     h1->g_to_c(false);
