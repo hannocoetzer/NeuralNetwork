@@ -226,13 +226,13 @@ __global__ void forwardProp(node* a, link* b, node* result, int sizeA, int numSu
         printf("\na[idxA].data : %0.2f",a[idxA].data);
 
         //temp test - 2 lines
-        float tempTest = b[idxB].weight * a[idxA].data;
-        printf("\nproduct : %0.2f = %0.2f * %0.2f ",tempTest,b[idxB].weight, a[idxA].data);
+        //float tempTest = b[idxB].weight * a[idxA].data;
+        //printf("\nproduct : %0.2f = %0.2f * %0.2f ",tempTest,b[idxB].weight, a[idxA].data);
 
         //implementation
-        // float product = b[idxB].weight * a[idxA].data;
-        // printf("\nproduct : %0.2f",product);
-        // atomicAdd(&result[subsetIdx].sum, product); //important [subsetIdx] NOT [idx] - because we want to get the subset total
+        float product = b[idxB].weight * a[idxA].data;
+        printf("\nproduct : %0.2f",product);
+        atomicAdd(&result[subsetIdx].sum, product); //important [subsetIdx] NOT [idx] - because we want to get the subset total
 
     }
 
@@ -294,7 +294,7 @@ __global__ void backwardProp(node* i, link* w, node* o, int sizeI, int sizeO) {
 
         //temp test - 3 lines
         w[idx].gradient = i[i_idx].data * o[o_idx].data;
-        printf("\nw[idx].gradient = %0.2f",w[idx].gradient);
+        printf("\nw[idx].gradient := %0.2f",w[idx].gradient);
         printf("\nw[idx].gradient =  %0.2f * %0.2f",i[i_idx].data, o[o_idx].data);
 
         //implementation
@@ -356,20 +356,15 @@ int main() {
     int opSize = w1->size;
     int blocksPerGrid = (opSize + threadsPerBlock - 1) / threadsPerBlock;
 
-    // printf("\n\nopSize : %i", opSize);
-    // printf("\n\nblocksPerGrid : %i", blocksPerGrid);
-    // printf("\ni1->size + i1->bias_Count : %i", i1->size + i1->bias_Count);
-    // printf("\nw1->size : %i", w1->size);
-    // printf("\nnumOfubsets : %i\n\n", w1->size / (i1->size + i1->bias_Count));
-
     int numOfSubsets = w1->size / (i1->size + i1->bias_Count);
     int size = i1->size + i1->bias_Count;
     forwardProp<<<blocksPerGrid, threadsPerBlock>>>(i1->g_node_arr, w1->g_link_arr, h1->g_node_arr, size, numOfSubsets);
     cudaDeviceSynchronize();
 
-    // //int size = i1->size + i1->bias_Count;
-    // backwardProp<<<blocksPerGrid, threadsPerBlock>>>(i1->g_node_arr, w1->g_link_arr, h1->g_node_arr, i1->size + 1, h1->size);
-    // cudaDeviceSynchronize();
+    int opSizeBackProp = (i1->size + 1) * h1->size;
+    int blocksPerGridBackProp = (opSizeBackProp + threadsPerBlock - 1) / threadsPerBlock;
+    backwardProp<<<blocksPerGridBackProp, threadsPerBlock>>>(i1->g_node_arr, w1->g_link_arr, h1->g_node_arr, i1->size + 1, h1->size);
+    cudaDeviceSynchronize();
     
     h1->g_to_c(false);
 
