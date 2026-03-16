@@ -273,10 +273,6 @@ __global__ void backwardProp(node* i, link* w, node* o, int sizeI, int sizeO) {
 
     __syncthreads();
 
-    // link->node->delta = layerNode->dfSum * sumOfWeight * link->node->delta;
-    // link->props->gradient = (layerNode->data * link->node->delta);
-    // link->props->gradientTotal = link->props->gradientTotal + link->props->gradient;
-
     //calculate gradient - 70% this is correct
     if (idx < sizeI * sizeO) {
         int i_idx = idx % sizeI; //cycles through I: 0,1,2,0,1,2
@@ -321,6 +317,19 @@ __global__ void backwardProp(node* i, link* w, node* o, int sizeI, int sizeO) {
     }
 }
 
+__global__ void adjustWeights(link* w, int sizeW, int batchSize, float learRate, float momentumRate)
+{
+    //link->props->weight_adjustment = (+1) * learnRate * (link->props->gradientTotal /4) + momentumRate * link->props->weight_adjustment; // Batch training
+    //link->props->weight = link->props->weight + link->props->weight_adjustment;
+
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if(idx < sizeW){
+        w[idx].weight_adjustment = learnRate * (w[idx].gradient_Total / batchSize) + (momentumRate * w[idx].weight_adjustment);
+        w[idx].weight = w[idx].weight + w[idx].weight_adjustment;
+    }
+}
+
 int main() {
 
     cudaDeviceReset();
@@ -361,12 +370,20 @@ int main() {
     forwardProp<<<blocksPerGrid, threadsPerBlock>>>(i1->g_node_arr, w1->g_link_arr, h1->g_node_arr, size, numOfSubsets);
     cudaDeviceSynchronize();
 
+    // + 1 to include BIAS
     int opSizeBackProp = (i1->size + 1) * h1->size;
     int blocksPerGridBackProp = (opSizeBackProp + threadsPerBlock - 1) / threadsPerBlock;
     backwardProp<<<blocksPerGridBackProp, threadsPerBlock>>>(i1->g_node_arr, w1->g_link_arr, h1->g_node_arr, i1->size + 1, h1->size);
     cudaDeviceSynchronize();
     
     h1->g_to_c(false);
+   
+    int opSizeWeightAdjust = (w1->size);
+    int blocksPerGridWeightAdjust = (opSizeWeightAdjust + threadsPerBlock - 1) / threadsPerBlock;
+    adjustWeights<<<blocksPerGridWeightAdjust, threadsPerBlock>>>(w1->g_node_arr, w->size,4, 0.7,0.3);
+    cudaDeviceSynchronize();
+
+    w1->g_to_c(false);
 
     i1->print(data);
     w1->print(weight);
