@@ -150,6 +150,6 @@ nvcc -V
 
 this should now display the installed `nvcc` version.
 ```
-### 5. useful links:
+### 5. verify installation:
 
 https://developer.nvidia.com/blog/cuda-python-1-0-stable-apis-one-foundation-full-platform-access/
