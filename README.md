@@ -147,7 +147,7 @@ after completing the steps, you can verify your `nvcc` installation.
 ```bash
 nvcc -V
 ```
-
+```
 this should now display the installed `nvcc` version.
 ```
 ### 5. verify installation:
