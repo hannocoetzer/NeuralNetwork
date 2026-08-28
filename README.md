@@ -143,9 +143,13 @@ source ~/.bashrc
 
 after completing the steps, you can verify your `nvcc` installation.
 
+
 ```bash
 nvcc -V
 ```
 
 this should now display the installed `nvcc` version.
 ```
+### 5. useful links:
+
+https://developer.nvidia.com/blog/cuda-python-1-0-stable-apis-one-foundation-full-platform-access/
